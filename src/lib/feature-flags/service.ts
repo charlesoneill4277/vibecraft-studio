@@ -1,6 +1,4 @@
 import { createClient } from '@/lib/supabase/client'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { config as appConfig } from '@/lib/config'
 import type {
   FeatureFlag,
@@ -438,16 +436,8 @@ export class FeatureFlagService {
   }
 }
 
-// Singleton instance for client-side usage
+// Note: This service is now primarily for server-side usage
+// Client-side code should use the client-service.ts instead
+
+// Singleton instance for server-side usage (when not using admin client)
 export const featureFlagService = new FeatureFlagService()
-
-// Server-side service factory
-export async function createServerFeatureFlagService() {
-  const serverClient = await createServerClient()
-  return new FeatureFlagService(serverClient)
-}
-
-// Admin service factory
-export function createAdminFeatureFlagService() {
-  return new FeatureFlagService(createAdminClient())
-}

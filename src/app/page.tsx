@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Zap, Code, Users, Brain } from 'lucide-react'
+import { FeatureFlagTest } from '@/components/debug/feature-flag-test'
 
 export default function Home() {
   return (
@@ -86,6 +87,11 @@ export default function Home() {
               </CardDescription>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Debug Section - Remove in production */}
+        <div className="mb-16">
+          <FeatureFlagTest />
         </div>
 
         {/* CTA Section */}

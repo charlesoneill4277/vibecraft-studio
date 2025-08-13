@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode } from 'react'
+import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode, useRef } from 'react'
 import { useAuth } from './use-auth'
-import { featureFlagService } from '@/lib/feature-flags/service'
-import type { FeatureFlagConfig, FeatureFlagContext as FeatureFlagEvaluationContext, FeatureFlagEvaluation } from '@/types/feature-flags'
+import { clientFeatureFlagService } from '@/lib/feature-flags/client-service'
+import type { FeatureFlagConfig, FeatureFlagContext as FeatureFlagEvaluationContext } from '@/types/feature-flags'
 
 interface FeatureFlagContextType {
   flags: FeatureFlagConfig
@@ -36,6 +36,7 @@ export function FeatureFlagProvider({
   const [flags, setFlags] = useState<FeatureFlagConfig>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const loadingRef = useRef(false)
 
   const getContext = useCallback((): FeatureFlagEvaluationContext => ({
     userId: user?.id,
@@ -44,15 +45,19 @@ export function FeatureFlagProvider({
     environment: process.env.NODE_ENV as any,
     userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
     customAttributes: customContext
-  }), [user, projectId, customContext])
+  }), [user?.id, user?.role, projectId])
 
   const loadFlags = useCallback(async () => {
+    // Prevent multiple simultaneous loads
+    if (loadingRef.current) return
+    
     try {
+      loadingRef.current = true
       setLoading(true)
       setError(null)
       
       const context = getContext()
-      const flagConfig = await featureFlagService.getAllFlags(context)
+      const flagConfig = await clientFeatureFlagService.getAllFlags(context)
       
       setFlags(flagConfig)
     } catch (err) {
@@ -71,6 +76,7 @@ export function FeatureFlagProvider({
       })
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }, [getContext])
 
@@ -96,7 +102,7 @@ export function FeatureFlagProvider({
     }
 
     try {
-      await featureFlagService.submitFeedback(flagName, user.id, feedback)
+      await clientFeatureFlagService.submitFeedback(flagName, user.id, feedback)
     } catch (err) {
       console.error('Error submitting feedback:', err)
       throw err
@@ -107,17 +113,17 @@ export function FeatureFlagProvider({
     await loadFlags()
   }, [loadFlags])
 
-  // Load flags on mount and when dependencies change
+  // Load flags on mount
   useEffect(() => {
     loadFlags()
-  }, [loadFlags])
+  }, []) // Empty dependency array - only run on mount
 
-  // Refresh flags when user changes
+  // Refresh flags when user ID changes
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       loadFlags()
     }
-  }, [user, loadFlags])
+  }, [user?.id]) // Only depend on user ID, not loadFlags
 
   const contextValue: FeatureFlagContextType = {
     flags,
