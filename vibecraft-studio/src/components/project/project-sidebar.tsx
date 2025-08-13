@@ -4,6 +4,7 @@ import { Project } from '@/hooks/use-projects'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { useFeatureFlags } from '@/hooks/use-feature-flags'
 import {
   Home,
   MessageSquare,
@@ -76,6 +77,7 @@ export function ProjectSidebar({
   onSectionChange,
   onToggle
 }: ProjectSidebarProps) {
+  const { isEnabled } = useFeatureFlags()
   return (
     <div
       className={cn(
@@ -118,7 +120,18 @@ export function ProjectSidebar({
         {sidebarItems.map((item) => {
           const Icon = item.icon
           const isActive = currentSection === item.id
-          const isComingSoon = ['chat', 'knowledge', 'code', 'collaboration', 'analytics'].includes(item.id)
+          
+          // Check feature flags for each section
+          const featureFlagMap: Record<string, string> = {
+            'chat': 'ai_chat',
+            'knowledge': 'knowledge_base',
+            'code': 'code_integration',
+            'collaboration': 'collaboration',
+            'analytics': 'analytics'
+          }
+          
+          const flagName = featureFlagMap[item.id]
+          const isComingSoon = flagName ? !isEnabled(flagName) : false
 
           return (
             <Button

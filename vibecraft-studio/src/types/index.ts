@@ -94,3 +94,6 @@ export interface ProjectMember {
 }
 
 export type ProjectRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+// Re-export feature flag types
+export * from './feature-flags';

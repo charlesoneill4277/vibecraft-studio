@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useProjects, Project } from '@/hooks/use-projects'
 import { ProjectWorkspaceLayout } from '@/components/project/project-workspace-layout'
 import { ProjectNavigationTest } from '@/components/project/project-navigation-test'
+import { ComingSoonCard } from '@/components/feature-flags/feature-gate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -154,37 +155,21 @@ export default function ProjectPage() {
         {/* Navigation Test */}
         <ProjectNavigationTest />
 
-        {/* Coming Soon Sections */}
+        {/* Feature-Gated Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Chat</CardTitle>
-              <CardDescription>
-                Conversation history and AI assistance for this project
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">AI Chat functionality coming soon!</p>
-                <Button disabled>Start Conversation</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ComingSoonCard
+            flagName="ai_chat"
+            featureName="AI Chat"
+            description="Conversation history and AI assistance for this project"
+            estimatedRelease="Q2 2025"
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Knowledge Base</CardTitle>
-              <CardDescription>
-                Project documentation and resources
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">Knowledge base coming soon!</p>
-                <Button disabled>Start Conversation</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ComingSoonCard
+            flagName="knowledge_base"
+            featureName="Knowledge Base"
+            description="Project documentation and resources"
+            estimatedRelease="Q2 2025"
+          />
         </div>
       </div>
     </ProjectWorkspaceLayout>

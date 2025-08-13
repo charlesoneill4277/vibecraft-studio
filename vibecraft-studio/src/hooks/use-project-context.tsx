@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { Project } from './use-projects'
 
 interface ProjectContextState {
@@ -85,14 +85,14 @@ export const ProjectContextProvider: React.FC<ProjectContextProviderProps> = ({ 
     }
   }, [currentProject, sidebarOpen])
 
-  const addToRecentProjects = (projectId: string) => {
+  const addToRecentProjects = useCallback((projectId: string) => {
     setRecentProjects(prev => {
       const filtered = prev.filter(id => id !== projectId)
       return [projectId, ...filtered].slice(0, 10) // Keep max 10 recent projects
     })
-  }
+  }, [])
 
-  const updateProjectSettings = (projectId: string, settings: Record<string, any>) => {
+  const updateProjectSettings = useCallback((projectId: string, settings: Record<string, any>) => {
     setProjectSettings(prev => ({
       ...prev,
       [projectId]: {
@@ -100,11 +100,11 @@ export const ProjectContextProvider: React.FC<ProjectContextProviderProps> = ({ 
         ...settings
       }
     }))
-  }
+  }, [])
 
-  const getProjectSettings = (projectId: string): Record<string, any> => {
+  const getProjectSettings = useCallback((projectId: string): Record<string, any> => {
     return projectSettings[projectId] || {}
-  }
+  }, [projectSettings])
 
   const contextValue: ProjectContextType = {
     // State

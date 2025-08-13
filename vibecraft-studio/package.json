@@ -32,7 +32,10 @@
     "auth:test-comprehensive": "tsx scripts/test-auth-comprehensive.ts",
     "project:test-crud": "tsx scripts/test-project-crud.ts",
     "project:test-dashboard": "tsx scripts/test-project-dashboard.ts",
-    "project:test-system": "tsx scripts/test-project-system.ts"
+    "project:test-system": "tsx scripts/test-project-system.ts",
+    "feature-flags:init": "tsx scripts/init-feature-flags.ts",
+    "feature-flags:test": "tsx scripts/test-feature-flags.ts",
+    "core-system:test": "tsx scripts/test-core-project-system-integration.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",
