@@ -41,7 +41,7 @@ export function ProjectDashboard({ className }: ProjectDashboardProps) {
 
   // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = projects.filter(project => {
+    const filtered = projects.filter(project => {
       // Search filter
       const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)

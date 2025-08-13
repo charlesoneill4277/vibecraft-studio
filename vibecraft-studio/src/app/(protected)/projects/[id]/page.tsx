@@ -1,18 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useProjects, Project } from '@/hooks/use-projects'
+import { ProjectWorkspaceLayout } from '@/components/project/project-workspace-layout'
+import { ProjectNavigationTest } from '@/components/project/project-navigation-test'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Settings, Users, Calendar, GitBranch, Folder, Activity } from 'lucide-react'
+import { Users, Calendar, GitBranch, Folder, Activity } from 'lucide-react'
 import { format } from 'date-fns'
-import Link from 'next/link'
 
 export default function ProjectPage() {
   const params = useParams()
-  const router = useRouter()
   const { getProject } = useProjects()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,11 +56,8 @@ export default function ProjectPage() {
             <p className="text-muted-foreground mb-6">
               {error || 'The project you are looking for does not exist or you do not have access to it.'}
             </p>
-            <Button asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
+            <Button onClick={() => window.location.href = '/dashboard'}>
+              Back to Dashboard
             </Button>
           </div>
         </div>
@@ -68,36 +65,11 @@ export default function ProjectPage() {
     )
   }
 
-  const userRole = project.project_members.find(member => member.user_id === project.user_id)?.role || 'viewer'
+  // const userRole = project.project_members.find(member => member.user_id === project.user_id)?.role || 'viewer'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{project.name}</h1>
-              {project.description && (
-                <p className="text-muted-foreground">{project.description}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{userRole}</Badge>
-            <Button variant="outline" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
-
+    <ProjectWorkspaceLayout project={project}>
+      <div className="space-y-6">
         {/* Project Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
@@ -179,6 +151,9 @@ export default function ProjectPage() {
           </Card>
         </div>
 
+        {/* Navigation Test */}
+        <ProjectNavigationTest />
+
         {/* Coming Soon Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
@@ -206,12 +181,12 @@ export default function ProjectPage() {
             <CardContent>
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">Knowledge base coming soon!</p>
-                <Button disabled>Add Knowledge</Button>
+                <Button disabled>Start Conversation</Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+    </ProjectWorkspaceLayout>
   )
 }
