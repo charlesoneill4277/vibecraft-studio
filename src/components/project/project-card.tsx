@@ -32,7 +32,7 @@ interface ProjectCardProps {
 export function ProjectCard({ project, onEdit, onDelete, onSettings }: ProjectCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  const userRole = project.project_members.find(member => member.user_id === project.user_id)?.role || 'viewer'
+  const userRole = project.project_members?.find(member => member.user_id === project.user_id)?.role || 'owner'
   const canEdit = ['owner', 'admin', 'editor'].includes(userRole)
   const canDelete = userRole === 'owner'
 
@@ -170,12 +170,12 @@ export function ProjectCard({ project, onEdit, onDelete, onSettings }: ProjectCa
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {project.project_members.length} member{project.project_members.length !== 1 ? 's' : ''}
+              {project.project_members?.length || 1} member{(project.project_members?.length || 1) !== 1 ? 's' : ''}
             </span>
           </div>
           
           <div className="flex -space-x-2">
-            {project.project_members.slice(0, 3).map((member, index) => (
+            {project.project_members?.slice(0, 3).map((member, index) => (
               <Avatar key={index} className="w-6 h-6 border-2 border-background">
                 <AvatarImage src={member.users.avatar_url || undefined} />
                 <AvatarFallback className="text-xs">
@@ -185,11 +185,17 @@ export function ProjectCard({ project, onEdit, onDelete, onSettings }: ProjectCa
                   }
                 </AvatarFallback>
               </Avatar>
-            ))}
-            {project.project_members.length > 3 && (
+            )) || (
+              <Avatar className="w-6 h-6 border-2 border-background">
+                <AvatarFallback className="text-xs">
+                  {project.user_id ? 'U' : '?'}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            {(project.project_members?.length || 0) > 3 && (
               <div className="w-6 h-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
                 <span className="text-xs text-muted-foreground">
-                  +{project.project_members.length - 3}
+                  +{(project.project_members?.length || 0) - 3}
                 </span>
               </div>
             )}

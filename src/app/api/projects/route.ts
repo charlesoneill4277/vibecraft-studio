@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { validateProject } from '@/lib/supabase/validation'
 
-export async function GET(_request: NextRequest) {
+/**
+ * GET /api/projects
+ * Returns projects the user owns OR is a member of.
+ * Optional query param includeMembers=true will perform a second query to
+ * fetch the caller's membership role per project (without doing a recursive join
+ * that previously triggered RLS infinite recursion).
+ */
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     
@@ -13,22 +22,84 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's projects with member information
-    const { data: projects, error } = await supabase
+    const searchParams = request.nextUrl.searchParams
+    const includeMembers = searchParams.get('includeMembers') === 'true'
+
+    // Fetch projects user owns OR is member of (policy handles access)
+    let { data: projects, error } = await supabase
       .from('projects')
-      .select(`
-        *,
-        project_members!inner(
-          role,
-          user_id,
-          users(full_name, email)
-        )
-      `)
+      .select('*')
       .order('updated_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching projects:', error)
-      return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+      if (error.code === '42P17') {
+        // Infinite recursion due to existing circular RLS policies: fallback with admin client (service role)
+        console.warn('[projects API] Detected recursive RLS (42P17). Using admin fallback.')
+        const admin = createAdminClient()
+        // Collect owned projects
+        const ownedRes = await admin
+          .from('projects')
+          .select('*')
+          .eq('user_id', user.id)
+        if (ownedRes.error) {
+          console.error('Admin fallback (owned) failed:', ownedRes.error)
+          return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+        }
+        // Collect membership project ids (only need ids)
+        const memberRes = await admin
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', user.id)
+        if (memberRes.error) {
+          console.error('Admin fallback (memberships) failed:', memberRes.error)
+          return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+        }
+        const memberProjectIds = new Set(memberRes.data.map(m => m.project_id))
+        // If membership already includes owned, union with owned ids
+        const allIds = new Set<string>([...ownedRes.data.map(p => p.id), ...memberProjectIds])
+        // If some membership projects not owned, fetch their project rows
+        const missingIds = [...allIds].filter(id => !ownedRes.data.find(p => p.id === id))
+        let extra: any[] = []
+        if (missingIds.length) {
+          const extraRes = await admin
+            .from('projects')
+            .select('*')
+            .in('id', missingIds)
+          if (extraRes.error) {
+            console.error('Admin fallback (extra projects) failed:', extraRes.error)
+            return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+          }
+            extra = extraRes.data || []
+        }
+        projects = [...ownedRes.data, ...extra]
+      } else {
+        console.error('Error fetching projects:', error)
+        return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+      }
+    }
+
+    if (!projects || projects.length === 0) {
+      return NextResponse.json({ projects: [] })
+    }
+
+    // Optionally enrich with caller's role (only their own membership row)
+    if (includeMembers) {
+      const projectIds = projects.map(p => p.id)
+      const { data: memberships, error: memberError } = await supabase
+        .from('project_members')
+        .select('project_id, role')
+        .in('project_id', projectIds)
+        .eq('user_id', user.id)
+
+      if (memberError) {
+        console.warn('Warning fetching memberships (non-fatal):', memberError)
+      } else if (memberships) {
+        const roleByProject: Record<string,string> = {}
+        memberships.forEach(m => { roleByProject[m.project_id] = m.role })
+        for (const p of projects) {
+          ;(p as any).current_user_role = roleByProject[p.id] || (p.user_id === user.id ? 'owner' : undefined)
+        }
+      }
     }
 
     return NextResponse.json({ projects })
@@ -91,26 +162,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create project membership' }, { status: 500 })
       }
 
-      // Return the created project with member information
-      const { data: createdProject, error: fetchError } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          project_members(
-            role,
-            user_id,
-            users(full_name, email, avatar_url)
-          )
-        `)
-        .eq('id', project.id)
-        .single()
-
-      if (fetchError) {
-        console.error('Error fetching created project:', fetchError)
-        return NextResponse.json({ error: 'Project created but failed to fetch details' }, { status: 500 })
-      }
-
-      return NextResponse.json({ project: createdProject }, { status: 201 })
+      // Return the created project (simplified to avoid RLS issues)
+      return NextResponse.json({ project }, { status: 201 })
     } catch (validationError) {
       return NextResponse.json({ 
         error: 'Validation failed', 

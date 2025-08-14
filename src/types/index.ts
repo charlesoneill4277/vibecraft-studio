@@ -95,5 +95,29 @@ export interface ProjectMember {
 
 export type ProjectRole = 'owner' | 'admin' | 'member' | 'viewer';
 
+export interface AIUsage {
+  id: string;
+  userId: string;
+  projectId?: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;
+  requestDuration: number;
+  createdAt: Date;
+}
+
+export interface UsageQuota {
+  id: string;
+  userId: string;
+  provider: string;
+  monthlyLimit: number;
+  currentUsage: number;
+  costLimit: number;
+  currentCost: number;
+  resetDate: Date;
+}
+
 // Re-export feature flag types
 export * from './feature-flags';

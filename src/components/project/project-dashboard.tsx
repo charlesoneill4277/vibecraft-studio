@@ -89,7 +89,7 @@ export function ProjectDashboard({ className }: ProjectDashboardProps) {
       return daysSinceUpdate <= 1
     }).length
     
-    const totalMembers = projects.reduce((sum, p) => sum + p.project_members.length, 0)
+    const totalMembers = projects.reduce((sum, p) => sum + (p.project_members?.length || 1), 0)
     const collaborativeProjects = projects.filter(p => p.settings?.collaborationEnabled).length
 
     return {

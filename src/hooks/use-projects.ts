@@ -13,7 +13,7 @@ export interface Project {
   settings: Record<string, any>
   created_at: string
   updated_at: string
-  project_members: Array<{
+  project_members?: Array<{
     role: string
     user_id: string
     users: {

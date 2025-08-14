@@ -177,7 +177,7 @@ export function ProjectSidebar({
               </div>
               <div className="flex justify-between">
                 <span>Members:</span>
-                <span>{project.project_members.length}</span>
+                <span>{project.project_members?.length || 0}</span>
               </div>
             </div>
           </div>

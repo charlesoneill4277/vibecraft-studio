@@ -48,7 +48,7 @@ export function ProjectSettings({ project, onProjectUpdated, onProjectDeleted }:
     onProjectDeleted?.()
   }
 
-  const userRole = project.project_members.find(member => member.user_id === project.user_id)?.role || 'viewer'
+  const userRole = project.project_members?.find(member => member.user_id === project.user_id)?.role || 'owner'
   const canEdit = ['owner', 'admin', 'editor'].includes(userRole)
   const canDelete = userRole === 'owner'
 
@@ -198,10 +198,10 @@ export function ProjectSettings({ project, onProjectUpdated, onProjectDeleted }:
             <div>
               <h3 className="font-medium mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                Team Members ({project.project_members.length})
+                Team Members ({project.project_members?.length || 0})
               </h3>
               <div className="space-y-2">
-                {project.project_members.map((member, index) => (
+                {project.project_members?.map((member, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">

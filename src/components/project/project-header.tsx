@@ -90,9 +90,9 @@ export function ProjectHeader({
     router.push('/dashboard?create=true')
   }
 
-  const userRole = project.project_members.find(
+  const userRole = project.project_members?.find(
     member => member.user_id === project.user_id
-  )?.role || 'viewer'
+  )?.role || 'owner'
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -214,7 +214,7 @@ export function ProjectHeader({
         {/* Project Status */}
         <div className="hidden md:flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            {project.project_members.length} member{project.project_members.length !== 1 ? 's' : ''}
+            {project.project_members?.length || 1} member{(project.project_members?.length || 1) !== 1 ? 's' : ''}
           </Badge>
           {project.github_repo && (
             <Badge variant="outline" className="text-xs">

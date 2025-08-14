@@ -221,6 +221,15 @@ export class DatabaseClient {
     return data
   }
 
+  async deleteAIProvider(id: string) {
+    const { error } = await this.supabase
+      .from('ai_providers')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  }
+
   // Templates
   async getTemplates(includePublic = true) {
     let query = this.supabase

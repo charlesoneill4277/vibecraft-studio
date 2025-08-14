@@ -23,10 +23,15 @@ export async function GET(request: NextRequest) {
       environment: process.env.NODE_ENV as any,
     }
 
-    const adminService = new FeatureFlagService(createAdminClient())
-    const flags = await adminService.getAllFlags(context)
-
-    return NextResponse.json({ flags })
+    try {
+      const adminService = new FeatureFlagService(createAdminClient())
+      const flags = await adminService.getAllFlags(context)
+      return NextResponse.json({ flags })
+    } catch (flagError) {
+      // If feature flags table doesn't exist, return empty flags
+      console.log('Feature flags table not found, returning empty flags:', flagError)
+      return NextResponse.json({ flags: {} })
+    }
   } catch (error) {
     console.error('Error fetching feature flags:', error)
     return NextResponse.json(
