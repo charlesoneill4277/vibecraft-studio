@@ -32,15 +32,28 @@ export class ChatService {
    */
   async sendMessage(
     userId: string,
-    request: SendMessageRequest
+    request: SendMessageRequest & { conversationId?: string }
   ): Promise<SendMessageResponse> {
     try {
+      // Get or create conversation
+      let conversationId = request.conversationId;
+      if (!conversationId) {
+        // Create a new conversation for this message
+        const { conversationService } = await import('@/lib/conversations/conversation-service');
+        const conversation = await conversationService.createConversation(userId, {
+          projectId: request.projectId,
+          title: 'New Conversation'
+        });
+        conversationId = conversation.id;
+      }
+
       // Get recent conversation history for context
-      const recentMessages = await this.getRecentMessages(request.projectId, 20);
+      const recentMessages = await this.getRecentMessages(request.projectId, 20, conversationId);
       
       // Create user message
       const userMessage = await db.createPrompt({
         project_id: request.projectId,
+        conversation_id: conversationId,
         role: 'user',
         content: request.content,
         ai_provider: request.providerId,
@@ -95,6 +108,7 @@ export class ChatService {
       // Create assistant message
       const assistantMessage = await db.createPrompt({
         project_id: request.projectId,
+        conversation_id: conversationId,
         role: 'assistant',
         content: aiResponse.content,
         ai_provider: request.providerId,
@@ -122,18 +136,31 @@ export class ChatService {
    */
   async *sendMessageStream(
     userId: string,
-    request: SendMessageRequest
+    request: SendMessageRequest & { conversationId?: string }
   ): AsyncGenerator<{
     type: 'user_message' | 'assistant_delta' | 'assistant_complete';
     data: any;
   }, void, unknown> {
     try {
+      // Get or create conversation
+      let conversationId = request.conversationId;
+      if (!conversationId) {
+        // Create a new conversation for this message
+        const { conversationService } = await import('@/lib/conversations/conversation-service');
+        const conversation = await conversationService.createConversation(userId, {
+          projectId: request.projectId,
+          title: 'New Conversation'
+        });
+        conversationId = conversation.id;
+      }
+
       // Get recent conversation history for context
-      const recentMessages = await this.getRecentMessages(request.projectId, 20);
+      const recentMessages = await this.getRecentMessages(request.projectId, 20, conversationId);
       
       // Create user message
       const userMessage = await db.createPrompt({
         project_id: request.projectId,
+        conversation_id: conversationId,
         role: 'user',
         content: request.content,
         ai_provider: request.providerId,
@@ -213,6 +240,7 @@ export class ChatService {
         if (!assistantMessageId && chunk.content) {
           const assistantMessage = await db.createPrompt({
             project_id: request.projectId,
+            conversation_id: conversationId,
             role: 'assistant',
             content: chunk.content,
             ai_provider: request.providerId,
@@ -286,14 +314,23 @@ export class ChatService {
    */
   async getRecentMessages(
     projectId: string,
-    limit: number = 10
+    limit: number = 10,
+    conversationId?: string
   ): Promise<DBChatMessage[]> {
     try {
-      const messages = await db.getProjectPrompts(projectId);
-      
-      return messages
-        .slice(-limit)
-        .map(this.mapDatabaseToType);
+      if (conversationId) {
+        // Get messages from specific conversation
+        const messages = await db.getConversationPrompts(conversationId);
+        return messages
+          .slice(-limit)
+          .map(this.mapDatabaseToType);
+      } else {
+        // Fallback to project-wide messages
+        const messages = await db.getProjectPrompts(projectId);
+        return messages
+          .slice(-limit)
+          .map(this.mapDatabaseToType);
+      }
     } catch (error) {
       console.error('Error getting recent messages:', error);
       return [];

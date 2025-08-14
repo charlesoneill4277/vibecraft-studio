@@ -91,6 +91,17 @@ export class DatabaseClient {
     return data
   }
 
+  async getConversationPrompts(conversationId: string) {
+    const { data, error } = await this.supabase
+      .from('project_prompts')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data
+  }
+
   async createPrompt(prompt: Inserts<'project_prompts'>) {
     const { data, error } = await this.supabase
       .from('project_prompts')

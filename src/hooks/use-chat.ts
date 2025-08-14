@@ -3,6 +3,7 @@ import { ChatMessage } from '@/types';
 
 interface UseChatOptions {
   projectId: string;
+  conversationId?: string;
   providerId?: string;
   model?: string;
   temperature?: number;
@@ -47,16 +48,21 @@ export function useChat(options: UseChatOptions): UseChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingMessageRef = useRef<ChatMessage | null>(null);
 
-  // Load chat history on mount
+  // Load chat history on mount and when conversation changes
   useEffect(() => {
     refreshHistory();
-  }, [options.projectId]);
+  }, [options.projectId, options.conversationId]);
 
   const refreshHistory = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      const response = await fetch(`/api/ai/chat/history?projectId=${options.projectId}`);
+      const params = new URLSearchParams({
+        projectId: options.projectId,
+        ...(options.conversationId && { conversationId: options.conversationId })
+      });
+
+      const response = await fetch(`/api/ai/chat/history?${params}`);
       if (!response.ok) {
         throw new Error('Failed to load chat history');
       }
@@ -75,7 +81,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         isLoading: false,
       }));
     }
-  }, [options.projectId]);
+  }, [options.projectId, options.conversationId]);
 
   const sendMessage = useCallback(async (
     content: string,
@@ -87,6 +93,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       const requestBody = {
         content,
         projectId: options.projectId,
+        conversationId: options.conversationId,
         providerId: messageOptions?.providerId || options.providerId,
         model: messageOptions?.model || options.model,
         temperature: messageOptions?.temperature || options.temperature,
@@ -136,6 +143,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       const requestBody = {
         content,
         projectId: options.projectId,
+        conversationId: options.conversationId,
         providerId: messageOptions?.providerId || options.providerId,
         model: messageOptions?.model || options.model,
         temperature: messageOptions?.temperature || options.temperature,

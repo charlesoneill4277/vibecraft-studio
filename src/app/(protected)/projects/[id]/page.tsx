@@ -157,12 +157,27 @@ export default function ProjectPage() {
 
         {/* Feature-Gated Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ComingSoonCard
-            flagName="ai_chat"
-            featureName="AI Chat"
-            description="Conversation history and AI assistance for this project"
-            estimatedRelease="Q2 2025"
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                AI Chat
+              </CardTitle>
+              <CardDescription>
+                Intelligent conversations with full project context
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Get AI assistance tailored to your project with access to your codebase, documentation, and project history.
+              </p>
+              <Button asChild>
+                <a href={`/projects/${project.id}/chat`}>
+                  Start Chatting
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
 
           <ComingSoonCard
             flagName="knowledge_base"

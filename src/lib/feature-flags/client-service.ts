@@ -104,7 +104,7 @@ export class ClientFeatureFlagService {
       templates: true,
       github_integration: true,
       analytics: false,
-      ai_chat: false,
+      ai_chat: true,
       knowledge_base: false,
       code_integration: false
     }

@@ -29,12 +29,44 @@ export interface ProjectSettings {
 export interface ChatMessage {
   id: string;
   projectId: string;
+  conversationId: string;
   role: 'user' | 'assistant';
   content: string;
   provider: string;
   model: string;
   metadata: MessageMetadata;
+  parentMessageId?: string;
+  threadDepth: number;
+  isBranchPoint: boolean;
   createdAt: Date;
+}
+
+export interface Conversation {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  parentConversationId?: string;
+  branchPointMessageId?: string;
+  isArchived: boolean;
+  isPinned: boolean;
+  tags: string[];
+  lastMessageAt: Date;
+  messageCount: number;
+  totalTokens: number;
+  totalCost: number;
+  metadata: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ConversationSummary extends Conversation {
+  projectName: string;
+  latestMessage?: string;
+  latestMessageRole?: 'user' | 'assistant';
+  latestMessageTime?: Date;
+  userMessageCount: number;
+  assistantMessageCount: number;
 }
 
 export interface MessageMetadata {
