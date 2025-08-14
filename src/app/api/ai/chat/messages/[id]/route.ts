@@ -14,18 +14,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { content, rating, feedback } = body;
 
     // If rating is provided, rate the message
     if (typeof rating === 'number') {
-      await chatService.rateMessage(params.id, rating, feedback);
+      await chatService.rateMessage(id, rating, feedback);
       return NextResponse.json({ success: true });
     }
 
     // If content is provided, update the message
     if (content) {
-      const updatedMessage = await chatService.updateMessage(params.id, content);
+      const updatedMessage = await chatService.updateMessage(id, content);
       return NextResponse.json({ message: updatedMessage });
     }
 
@@ -62,7 +63,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await chatService.deleteMessage(params.id);
+    const { id } = await params;
+    await chatService.deleteMessage(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting message:', error);

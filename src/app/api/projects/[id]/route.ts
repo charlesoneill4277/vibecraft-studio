@@ -11,6 +11,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           users(full_name, email, avatar_url)
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { data: membership, error: membershipError } = await supabase
       .from('project_members')
       .select('role')
-      .eq('project_id', params.id)
+      .eq('project_id', id)
       .eq('user_id', user.id)
       .single()
 
@@ -86,7 +88,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const { data: project, error: updateError } = await supabase
         .from('projects')
         .update(validatedUpdates)
-        .eq('id', params.id)
+        .eq('id', id)
         .select(`
           *,
           project_members(
@@ -118,6 +120,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -130,7 +133,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { data: membership, error: membershipError } = await supabase
       .from('project_members')
       .select('role')
-      .eq('project_id', params.id)
+      .eq('project_id', id)
       .eq('user_id', user.id)
       .single()
 
@@ -147,7 +150,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { error: deleteError } = await supabase
       .from('projects')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       console.error('Error deleting project:', deleteError)

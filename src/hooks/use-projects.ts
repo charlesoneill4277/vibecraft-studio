@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './use-auth'
 
 export interface Project {
@@ -46,7 +46,7 @@ export function useProjects() {
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     if (!user) {
       setProjects([])
       setLoading(false)
@@ -72,9 +72,9 @@ export function useProjects() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
-  const createProject = async (projectData: CreateProjectData) => {
+  const createProject = useCallback(async (projectData: CreateProjectData) => {
     try {
       setError(null)
 
@@ -103,9 +103,9 @@ export function useProjects() {
       setError(errorMessage)
       return { project: null, error: errorMessage }
     }
-  }
+  }, [])
 
-  const updateProject = async (projectId: string, updates: UpdateProjectData) => {
+  const updateProject = useCallback(async (projectId: string, updates: UpdateProjectData) => {
     try {
       setError(null)
 
@@ -138,9 +138,9 @@ export function useProjects() {
       setError(errorMessage)
       return { project: null, error: errorMessage }
     }
-  }
+  }, [])
 
-  const deleteProject = async (projectId: string) => {
+  const deleteProject = useCallback(async (projectId: string) => {
     try {
       setError(null)
 
@@ -162,9 +162,9 @@ export function useProjects() {
       setError(errorMessage)
       return { error: errorMessage }
     }
-  }
+  }, [])
 
-  const getProject = async (projectId: string) => {
+  const getProject = useCallback(async (projectId: string) => {
     try {
       setError(null)
 
@@ -182,12 +182,12 @@ export function useProjects() {
       setError(errorMessage)
       return { project: null, error: errorMessage }
     }
-  }
+  }, [])
 
   // Fetch projects when user changes
   useEffect(() => {
     fetchProjects()
-  }, [user])
+  }, [fetchProjects])
 
   return {
     projects,

@@ -14,7 +14,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const provider = await aiProviderService.getProvider(params.id);
+    const { id } = await params;
+    const provider = await aiProviderService.getProvider(id);
     
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
@@ -53,7 +54,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const provider = await aiProviderService.getProvider(params.id);
+    const { id } = await params;
+    const provider = await aiProviderService.getProvider(id);
     
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
@@ -75,7 +77,7 @@ export async function PATCH(
       updates.settings = settings;
     }
 
-    const updatedProvider = await aiProviderService.updateProvider(params.id, updates);
+    const updatedProvider = await aiProviderService.updateProvider(id, updates);
 
     // Remove sensitive data before sending to client
     const sanitizedProvider = {
@@ -105,7 +107,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const provider = await aiProviderService.getProvider(params.id);
+    const { id } = await params;
+    const provider = await aiProviderService.getProvider(id);
     
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
@@ -116,7 +119,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await aiProviderService.deleteProvider(params.id);
+    await aiProviderService.deleteProvider(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

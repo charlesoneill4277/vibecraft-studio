@@ -50,7 +50,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const flag = await featureFlagAdminService.getFeatureFlag(params.id)
+    const { id } = await params;
+    const flag = await featureFlagAdminService.getFeatureFlag(id)
     
     if (!flag) {
       return NextResponse.json(
@@ -79,9 +80,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    const { id } = await params;
     const body = await request.json() as UpdateFeatureFlagRequest
 
-    const flag = await featureFlagAdminService.updateFeatureFlag(params.id, body)
+    const flag = await featureFlagAdminService.updateFeatureFlag(id, body)
     return NextResponse.json({ flag })
   } catch (error) {
     console.error('Error updating feature flag:', error)
@@ -102,7 +104,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    await featureFlagAdminService.deleteFeatureFlag(params.id)
+    const { id } = await params;
+    await featureFlagAdminService.deleteFeatureFlag(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting feature flag:', error)

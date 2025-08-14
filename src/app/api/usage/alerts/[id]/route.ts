@@ -19,7 +19,8 @@ async function handleUpdateAlert(
     }
 
     const { action } = await request.json();
-    const alertId = params.id;
+    const { id } = await params;
+    const alertId = id;
 
     if (action === 'mark_read') {
       await usageService.markAlertAsRead(alertId);

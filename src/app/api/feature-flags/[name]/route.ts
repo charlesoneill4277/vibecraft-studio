@@ -11,6 +11,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient()
+    const { name } = await params
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Evaluate the specific feature flag
-    const evaluation = await featureFlagService.evaluateFlag(params.name, context)
+    const evaluation = await featureFlagService.evaluateFlag(name, context)
 
     return NextResponse.json({ evaluation })
   } catch (error) {
