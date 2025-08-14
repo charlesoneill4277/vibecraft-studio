@@ -119,5 +119,120 @@ export interface UsageQuota {
   resetDate: Date;
 }
 
+// Enhanced usage management types
+export interface UserSubscription {
+  id: string;
+  userId: string;
+  planType: 'free' | 'pro' | 'enterprise';
+  status: 'active' | 'cancelled' | 'expired' | 'suspended';
+  billingCycle?: 'monthly' | 'yearly';
+  currentPeriodStart?: Date;
+  currentPeriodEnd?: Date;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  metadata: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UsageQuotaDetailed {
+  id: string;
+  userId: string;
+  provider: 'openai' | 'anthropic' | 'straico' | 'cohere';
+  quotaType: 'tokens' | 'requests' | 'cost';
+  monthlyLimit: number;
+  currentUsage: number;
+  resetDate: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AIUsageLog {
+  id: string;
+  userId: string;
+  projectId?: string;
+  provider: 'openai' | 'anthropic' | 'straico' | 'cohere';
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+  requestDuration?: number;
+  status: 'success' | 'error' | 'rate_limited' | 'quota_exceeded';
+  errorMessage?: string;
+  metadata: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface UsageAlert {
+  id: string;
+  userId: string;
+  alertType: 'quota_warning' | 'quota_exceeded' | 'cost_warning' | 'upgrade_prompt';
+  provider?: 'openai' | 'anthropic' | 'straico' | 'cohere';
+  thresholdPercentage?: number;
+  currentUsage?: number;
+  limitValue?: number;
+  message: string;
+  isRead: boolean;
+  isDismissed: boolean;
+  createdAt: Date;
+}
+
+export interface RateLimit {
+  id: string;
+  userId: string;
+  endpoint: string;
+  requestsCount: number;
+  windowStart: Date;
+  windowDuration: string; // PostgreSQL interval
+  maxRequests: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BillingEvent {
+  id: string;
+  userId: string;
+  eventType: 'subscription_created' | 'subscription_updated' | 'subscription_cancelled' | 'payment_succeeded' | 'payment_failed' | 'quota_exceeded';
+  amount?: number;
+  currency: string;
+  stripeEventId?: string;
+  metadata: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface UsageAnalytics {
+  userId: string;
+  email: string;
+  planType: 'free' | 'pro' | 'enterprise';
+  totalRequests: number;
+  totalTokens: number;
+  totalCost: number;
+  avgRequestDuration: number;
+  usageDate: Date;
+}
+
+export interface UsageSummary {
+  provider: string;
+  quotaType: string;
+  currentUsage: number;
+  monthlyLimit: number;
+  usagePercentage: number;
+  resetDate: Date;
+  isNearLimit: boolean;
+  isOverLimit: boolean;
+}
+
+export interface CostBreakdown {
+  provider: string;
+  model: string;
+  totalCost: number;
+  totalTokens: number;
+  requestCount: number;
+  avgCostPerRequest: number;
+  avgCostPerToken: number;
+}
+
 // Re-export feature flag types
 export * from './feature-flags';

@@ -102,6 +102,18 @@ export class DatabaseClient {
     return data
   }
 
+  async updatePrompt(id: string, updates: Updates<'project_prompts'>) {
+    const { data, error } = await this.supabase
+      .from('project_prompts')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
   async deletePrompt(id: string) {
     const { error } = await this.supabase
       .from('project_prompts')

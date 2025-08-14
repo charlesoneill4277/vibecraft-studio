@@ -3,3 +3,7 @@ export { ProviderCard } from './provider-card';
 export { AddProviderDialog } from './add-provider-dialog';
 export { ProviderSettingsDialog } from './provider-settings-dialog';
 export { UsageDashboard } from './usage-dashboard';
+export { ChatInterface } from './chat-interface';
+export { EnhancedChatInterface } from './enhanced-chat-interface';
+export { ChatMessage } from './chat-message';
+export { ChatInput } from './chat-input';

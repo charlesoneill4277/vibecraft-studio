@@ -2,6 +2,8 @@
 
 import { ProvidersManager } from '@/components/ai/providers-manager';
 import { UsageDashboard } from '@/components/ai/usage-dashboard';
+import { ChatInterface } from '@/components/ai/chat-interface';
+import { EnhancedChatInterface } from '@/components/ai/enhanced-chat-interface';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function TestAIPage() {
@@ -14,11 +16,27 @@ export default function TestAIPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="providers" className="space-y-4">
+      <Tabs defaultValue="enhanced" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="chat">Basic Chat</TabsTrigger>
+          <TabsTrigger value="enhanced">Enhanced Chat</TabsTrigger>
           <TabsTrigger value="providers">AI Providers</TabsTrigger>
           <TabsTrigger value="usage">Usage Dashboard</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="chat">
+          <ChatInterface 
+            projectId="test-project-123" 
+            systemPrompt="You are a helpful AI assistant for web development projects."
+          />
+        </TabsContent>
+
+        <TabsContent value="enhanced">
+          <EnhancedChatInterface 
+            projectId="test-project-123" 
+            systemPrompt="You are a helpful AI assistant for web development projects with fallback and caching capabilities."
+          />
+        </TabsContent>
 
         <TabsContent value="providers">
           <ProvidersManager />
