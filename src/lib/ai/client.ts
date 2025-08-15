@@ -480,7 +480,7 @@ export class UnifiedAIClient {
       
       // Handle specific error cases
       if (response.status === 401) {
-        throw new Error('Invalid API key format or unauthorized access');
+        throw new Error('Invalid or expired Straico API key');
       } else if (response.status === 403) {
         throw new Error('API key does not have permission to access this resource');
       } else if (response.status === 429) {
@@ -561,7 +561,7 @@ export class UnifiedAIClient {
       }
       
       if (response.status === 401) {
-        throw new Error('Invalid API key format or unauthorized access');
+        throw new Error('Invalid or expired Straico API key');
       } else if (response.status === 403) {
         throw new Error('API key does not have permission to access this resource');
       }

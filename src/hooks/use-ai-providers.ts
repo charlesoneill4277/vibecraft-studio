@@ -9,7 +9,7 @@ interface UseAIProvidersReturn {
   createProvider: (provider: AIProviderType, apiKey: string, settings?: any) => Promise<void>;
   updateProvider: (id: string, updates: { isActive?: boolean; settings?: any }) => Promise<void>;
   deleteProvider: (id: string) => Promise<void>;
-  testApiKey: (provider: AIProviderType, apiKey: string) => Promise<boolean>;
+  testApiKey: (provider: AIProviderType, apiKey: string) => Promise<{ valid: boolean; error?: string }>;
   refreshProviders: () => Promise<void>;
 }
 
@@ -112,7 +112,7 @@ export function useAIProviders(): UseAIProvidersReturn {
     }
   };
 
-  const testApiKey = async (provider: AIProviderType, apiKey: string): Promise<boolean> => {
+  const testApiKey = async (provider: AIProviderType, apiKey: string): Promise<{ valid: boolean; error?: string }> => {
     try {
       const response = await fetch('/api/ai/providers/test', {
         method: 'POST',
@@ -123,10 +123,15 @@ export function useAIProviders(): UseAIProvidersReturn {
       });
 
       const data = await response.json();
-      return data.valid === true;
+      
+      if (data.valid === true) {
+        return { valid: true };
+      } else {
+        return { valid: false, error: data.error || 'API key test failed' };
+      }
     } catch (err) {
       console.error('Error testing API key:', err);
-      return false;
+      return { valid: false, error: 'Failed to test API key. Please check your connection.' };
     }
   };
 

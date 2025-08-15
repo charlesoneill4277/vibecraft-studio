@@ -80,7 +80,7 @@ async function testStraicoConnection(apiKey: string): Promise<{ success: boolean
     if (response.ok) {
       return { success: true, message: 'Straico API key is valid and working' };
     } else if (response.status === 401) {
-      return { success: false, error: 'Invalid API key format or unauthorized access' };
+      return { success: false, error: 'Invalid or expired Straico API key. Please check your API key is correct and active.' };
     } else if (response.status === 403) {
       return { success: false, error: 'API key does not have permission to access this resource' };
     } else if (response.status === 429) {

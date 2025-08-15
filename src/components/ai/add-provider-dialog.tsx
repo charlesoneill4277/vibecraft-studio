@@ -15,7 +15,7 @@ interface AddProviderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (provider: AIProviderType, apiKey: string, settings?: any) => Promise<void>;
-  onTestApiKey: (provider: AIProviderType, apiKey: string) => Promise<boolean>;
+  onTestApiKey: (provider: AIProviderType, apiKey: string) => Promise<{ valid: boolean; error?: string }>;
 }
 
 export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: AddProviderDialogProps) {
@@ -27,6 +27,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
   });
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [keyTestResult, setKeyTestResult] = useState<boolean | null>(null);
+  const [keyTestError, setKeyTestError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const availableProviders = getAvailableProviders();
@@ -36,6 +37,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
     setSelectedProvider(provider);
     setApiKey('');
     setKeyTestResult(null);
+    setKeyTestError(null);
     
     const config = getProviderConfig(provider);
     setSettings({
@@ -49,10 +51,15 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
 
     try {
       setIsTestingKey(true);
-      const isValid = await onTestApiKey(selectedProvider, apiKey);
-      setKeyTestResult(isValid);
+      setKeyTestError(null);
+      const result = await onTestApiKey(selectedProvider, apiKey);
+      setKeyTestResult(result.valid);
+      if (!result.valid && result.error) {
+        setKeyTestError(result.error);
+      }
     } catch (error) {
       setKeyTestResult(false);
+      setKeyTestError('Failed to test API key. Please try again.');
     } finally {
       setIsTestingKey(false);
     }
@@ -75,6 +82,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
       // Reset form
       setApiKey('');
       setKeyTestResult(null);
+      setKeyTestError(null);
       setSettings({
         maxTokens: 4000,
         temperature: 0.7,
@@ -152,6 +160,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
                 onChange={(e) => {
                   setApiKey(e.target.value);
                   setKeyTestResult(null);
+                  setKeyTestError(null);
                 }}
               />
               <Button
@@ -171,12 +180,14 @@ export function AddProviderDialog({ open, onOpenChange, onAdd, onTestApiKey }: A
                 {keyTestResult ? (
                   <>
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-green-600">API key format is valid</span>
+                    <span className="text-green-600">API key is valid and working</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-red-600">Invalid API key format</span>
+                    <span className="text-red-600">
+                      {keyTestError || 'API key test failed'}
+                    </span>
                   </>
                 )}
               </div>
