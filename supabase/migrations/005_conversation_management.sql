@@ -249,7 +249,7 @@ ON DELETE SET NULL;
 CREATE VIEW public.conversation_summaries AS
 SELECT 
     c.*,
-    p.projects.name as project_name,
+    p.name as project_name,
     latest_msg.content as latest_message,
     latest_msg.role as latest_message_role,
     latest_msg.created_at as latest_message_time,

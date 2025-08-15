@@ -25,6 +25,7 @@ import { ProjectChatMessage } from './project-chat-message'
 import { ProjectChatInput } from './project-chat-input'
 import { TypingIndicator } from './typing-indicator'
 import { ContextPreviewPanel } from './context-preview-panel'
+import { ProviderConfigDialog } from './provider-config-dialog'
 import { useChat } from '@/hooks/use-chat'
 import { useAIProviders } from '@/hooks/use-ai-providers'
 import { useContextInjection } from '@/hooks/use-context-injection'
@@ -51,6 +52,7 @@ export function ProjectChatInterface({
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [showContextPanel, setShowContextPanel] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<string>('')
+  const [showProviderConfig, setShowProviderConfig] = useState(false)
   
   const { providers, loading: providersLoading } = useAIProviders()
   const {
@@ -286,11 +288,21 @@ export function ProjectChatInterface({
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               No active AI providers found. Please configure at least one AI provider to start chatting.
-              <Button variant="link" className="p-0 h-auto ml-2">
+              <Button 
+                variant="link" 
+                className="p-0 h-auto ml-2"
+                onClick={() => setShowProviderConfig(true)}
+              >
                 Configure Providers
               </Button>
             </AlertDescription>
           </Alert>
+
+          {/* Provider Configuration Dialog */}
+          <ProviderConfigDialog
+            open={showProviderConfig}
+            onOpenChange={setShowProviderConfig}
+          />
         </CardContent>
       </Card>
     )
@@ -324,8 +336,17 @@ export function ProjectChatInterface({
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowProviderConfig(true)}
+              title="Configure AI Providers"
+            >
+              <Zap className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowContextPanel(!showContextPanel)}
               className={cn(showContextPanel && 'bg-primary/10 border-primary/20')}
+              title="Toggle Context Panel"
             >
               <Brain className="h-4 w-4" />
             </Button>
@@ -334,6 +355,7 @@ export function ProjectChatInterface({
               size="sm"
               onClick={refreshHistory}
               disabled={isLoading}
+              title="Refresh Chat History"
             >
               <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
             </Button>
@@ -342,6 +364,7 @@ export function ProjectChatInterface({
               size="sm"
               onClick={handleExportChat}
               disabled={messages.length === 0}
+              title="Export Chat"
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -351,6 +374,7 @@ export function ProjectChatInterface({
                 size="sm"
                 onClick={handleClearMessages}
                 disabled={isLoading || isStreaming}
+                title="Clear Messages"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -507,6 +531,12 @@ export function ProjectChatInterface({
           </>
         )}
       </CardContent>
+
+      {/* Provider Configuration Dialog */}
+      <ProviderConfigDialog
+        open={showProviderConfig}
+        onOpenChange={setShowProviderConfig}
+      />
     </Card>
   )
 }

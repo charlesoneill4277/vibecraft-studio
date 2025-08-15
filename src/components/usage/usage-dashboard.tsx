@@ -28,7 +28,7 @@ import {
   Zap, 
   Clock,
   RefreshCw,
-  Upgrade
+  ArrowUp
 } from 'lucide-react';
 import { 
   useUsageAnalytics, 
@@ -80,7 +80,7 @@ export function UsageDashboard() {
           </Badge>
           {subscription?.planType === 'free' && (
             <Button size="sm" className="gap-2">
-              <Upgrade className="h-4 w-4" />
+              <ArrowUp className="h-4 w-4" />
               Upgrade
             </Button>
           )}

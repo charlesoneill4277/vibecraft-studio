@@ -101,15 +101,17 @@ export function useConversations({
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/conversations?projectId=${projectId}`)
+      const response = await fetch(`/api/conversations?projectId=${encodeURIComponent(projectId)}`)
       if (!response.ok) {
-        throw new Error('Failed to load conversations')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to load conversations' }))
+        throw new Error(errorData.error || 'Failed to load conversations')
       }
 
       const data = await response.json()
-      setConversations(data.conversations)
-      setTotal(data.total)
+      setConversations(data.conversations || [])
+      setTotal(data.total || 0)
     } catch (err) {
+      console.error('Error refreshing conversations:', err)
       setError(err instanceof Error ? err.message : 'Failed to load conversations')
     } finally {
       setLoading(false)
@@ -256,24 +258,30 @@ export function useConversations({
       setLoading(true)
       setError(null)
 
-      const params = new URLSearchParams({
-        projectId,
-        ...Object.fromEntries(
-          Object.entries(options).map(([key, value]) => [
-            key,
-            Array.isArray(value) ? value.join(',') : String(value)
-          ])
-        )
+      const params = new URLSearchParams({ projectId })
+      
+      // Only add parameters that have actual values (not undefined/null)
+      Object.entries(options).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              params.append(key, value.join(','))
+            }
+          } else {
+            params.append(key, String(value))
+          }
+        }
       })
 
       const response = await fetch(`/api/conversations/search?${params}`)
       if (!response.ok) {
-        throw new Error('Failed to search conversations')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to search conversations' }))
+        throw new Error(errorData.error || 'Failed to search conversations')
       }
 
       const data = await response.json()
-      setConversations(data.conversations)
-      setTotal(data.total)
+      setConversations(data.conversations || [])
+      setTotal(data.total || 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search conversations')
     } finally {

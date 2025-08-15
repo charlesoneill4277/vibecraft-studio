@@ -6,6 +6,7 @@ import { useProjects, Project } from '@/hooks/use-projects'
 import { ProjectWorkspaceLayout } from '@/components/project/project-workspace-layout'
 import { ProjectChatInterface } from '@/components/project/project-chat-interface'
 import { ConversationHistorySidebar } from '@/components/project/conversation-history-sidebar'
+import { ChatSettingsDialog } from '@/components/project/chat-settings-dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MessageSquare, Zap, Settings } from 'lucide-react'
@@ -17,6 +18,7 @@ export default function ProjectChatPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [showChatSettings, setShowChatSettings] = useState(false)
 
   const projectId = params.id as string
 
@@ -80,7 +82,11 @@ export default function ProjectChatPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowChatSettings(true)}
+            >
               <Settings className="h-4 w-4 mr-2" />
               Chat Settings
             </Button>
@@ -111,6 +117,19 @@ export default function ProjectChatPage() {
             />
           </div>
         </div>
+
+        {/* Chat Settings Dialog */}
+        {project && (
+          <ChatSettingsDialog
+            open={showChatSettings}
+            onOpenChange={setShowChatSettings}
+            project={project}
+            onSettingsUpdate={(settings) => {
+              // Optionally refresh project data or update local state
+              console.log('Chat settings updated:', settings)
+            }}
+          />
+        )}
       </div>
     </ProjectWorkspaceLayout>
   )

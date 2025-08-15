@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (isPinnedParam === 'true') isPinned = true
     else if (isPinnedParam === 'false') isPinned = false
 
-    // Parse numeric parameters with defaults and validation
+    // Parse numeric parameters with defaults
     const limit = limitParam ? parseInt(limitParam) : 50
     const offset = offsetParam ? parseInt(offsetParam) : 0
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       offset: isNaN(offset) ? 0 : Math.max(0, offset)
     }
 
-    console.log('Get conversations with options:', { projectId, options })
+    console.log('Search conversations with options:', { projectId, options })
 
     const result = await conversationService.getProjectConversations(
       user.id,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result)
   } catch (error) {
-    console.error('Error getting conversations:', error)
+    console.error('Error searching conversations:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -73,60 +73,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to get conversations' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { 
-      projectId, 
-      title, 
-      description, 
-      parentConversationId, 
-      branchPointMessageId, 
-      tags 
-    } = body
-
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'ProjectId is required' },
-        { status: 400 }
-      )
-    }
-
-    const conversation = await conversationService.createConversation(user.id, {
-      projectId,
-      title,
-      description,
-      parentConversationId,
-      branchPointMessageId,
-      tags
-    })
-
-    return NextResponse.json(conversation)
-  } catch (error) {
-    console.error('Error creating conversation:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to create conversation' },
+      { error: 'Failed to search conversations' },
       { status: 500 }
     )
   }

@@ -44,7 +44,9 @@ export interface ConversationExport {
 }
 
 export class ConversationService {
-  private supabase = createClient()
+  private async getSupabase() {
+    return await createClient()
+  }
 
   /**
    * Create a new conversation
@@ -53,8 +55,10 @@ export class ConversationService {
     userId: string,
     request: CreateConversationRequest
   ): Promise<Conversation> {
+    const supabase = await this.getSupabase()
+    
     // Verify user has access to the project
-    const { data: project, error: projectError } = await this.supabase
+    const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id, user_id')
       .eq('id', request.projectId)
@@ -71,7 +75,7 @@ export class ConversationService {
       throw new Error('Access denied to project')
     }
 
-    const { data, error } = await this.supabase
+    const { data, error } = await supabase
       .from('conversations')
       .insert({
         project_id: request.projectId,
@@ -131,15 +135,21 @@ export class ConversationService {
     projectId: string,
     options: ConversationSearchOptions = {}
   ): Promise<{ conversations: ConversationSummary[], total: number }> {
+    const supabase = await this.getSupabase()
+    
     // Verify project access
     const hasAccess = await this.checkProjectAccess(userId, projectId)
     if (!hasAccess) {
       throw new Error('Access denied to project')
     }
 
-    let query = this.supabase
-      .from('conversation_summaries')
-      .select('*', { count: 'exact' })
+    // First check if the view exists, fallback to direct table query
+    let query = supabase
+      .from('conversations')
+      .select(`
+        *,
+        projects!inner(name)
+      `, { count: 'exact' })
       .eq('project_id', projectId)
 
     // Apply filters
@@ -176,7 +186,10 @@ export class ConversationService {
     }
 
     return {
-      conversations: (data || []).map(this.mapDatabaseToConversationSummary),
+      conversations: (data || []).map(item => this.mapDatabaseToConversationSummary({
+        ...item,
+        project_name: item.projects?.name || 'Unknown Project'
+      })),
       total: count || 0
     }
   }
@@ -501,7 +514,8 @@ export class ConversationService {
   // Private helper methods
 
   private async checkProjectAccess(userId: string, projectId: string): Promise<boolean> {
-    const { data: project } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data: project } = await supabase
       .from('projects')
       .select('user_id')
       .eq('id', projectId)
@@ -515,7 +529,8 @@ export class ConversationService {
   }
 
   private async checkProjectMembership(userId: string, projectId: string): Promise<boolean> {
-    const { data } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data } = await supabase
       .from('project_members')
       .select('id')
       .eq('project_id', projectId)
