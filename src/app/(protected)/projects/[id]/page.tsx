@@ -9,7 +9,7 @@ import { ComingSoonCard } from '@/components/feature-flags/feature-gate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, Calendar, GitBranch, Folder, Activity } from 'lucide-react'
+import { Users, Calendar, GitBranch, Folder, Activity, MessageSquare } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function ProjectPage() {
