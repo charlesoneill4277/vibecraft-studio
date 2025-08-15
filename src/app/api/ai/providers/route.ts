@@ -2,89 +2,66 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { aiProviderService } from '@/lib/ai/service';
 import { AIProviderType } from '@/lib/ai/providers';
+import { withAPIErrorHandling } from '@/lib/errors';
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+export const GET = withAPIErrorHandling(async (request: NextRequest) => {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const providers = await aiProviderService.getProviders(user.id);
-    
-    // Remove sensitive data before sending to client
-    const sanitizedProviders = providers.map(provider => ({
-      ...provider,
-      apiKeyEncrypted: '***' // Hide encrypted key from client
-    }));
+  const providers = await aiProviderService.getProviders(user.id);
+  
+  // Remove sensitive data before sending to client
+  const sanitizedProviders = providers.map(provider => ({
+    ...provider,
+    apiKeyEncrypted: '***' // Hide encrypted key from client
+  }));
 
-    return NextResponse.json({ providers: sanitizedProviders });
-  } catch (error) {
-    console.error('Error fetching AI providers:', error);
+  return NextResponse.json({ providers: sanitizedProviders });
+});
+
+export const POST = withAPIErrorHandling(async (request: NextRequest) => {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { provider, apiKey, settings } = body;
+
+  if (!provider || !apiKey) {
     return NextResponse.json(
-      { error: 'Failed to fetch AI providers' },
-      { status: 500 }
+      { error: 'Provider and API key are required' },
+      { status: 400 }
     );
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { provider, apiKey, settings } = body;
-
-    if (!provider || !apiKey) {
-      return NextResponse.json(
-        { error: 'Provider and API key are required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate provider type
-    const validProviders: AIProviderType[] = ['openai', 'anthropic', 'straico', 'cohere'];
-    if (!validProviders.includes(provider)) {
-      return NextResponse.json(
-        { error: 'Invalid provider type' },
-        { status: 400 }
-      );
-    }
-
-    const newProvider = await aiProviderService.createProvider(
-      user.id,
-      provider,
-      apiKey,
-      settings
-    );
-
-    // Remove sensitive data before sending to client
-    const sanitizedProvider = {
-      ...newProvider,
-      apiKeyEncrypted: '***'
-    };
-
-    return NextResponse.json({ provider: sanitizedProvider }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating AI provider:', error);
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
-    }
-
+  // Validate provider type
+  const validProviders: AIProviderType[] = ['openai', 'anthropic', 'straico', 'cohere'];
+  if (!validProviders.includes(provider)) {
     return NextResponse.json(
-      { error: 'Failed to create AI provider' },
-      { status: 500 }
+      { error: 'Invalid provider type' },
+      { status: 400 }
     );
   }
-}
+
+  const newProvider = await aiProviderService.createProvider(
+    user.id,
+    provider,
+    apiKey,
+    settings
+  );
+
+  // Remove sensitive data before sending to client
+  const sanitizedProvider = {
+    ...newProvider,
+    apiKeyEncrypted: '***'
+  };
+
+  return NextResponse.json({ provider: sanitizedProvider }, { status: 201 });
+});

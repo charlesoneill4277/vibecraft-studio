@@ -35,7 +35,8 @@ describe('AI Providers', () => {
     expect(validateApiKeyFormat('anthropic', 'sk-ant-1234567890abcdef1234567890abcdef')).toBe(true);
     expect(validateApiKeyFormat('anthropic', 'invalid-key')).toBe(false);
     
-    expect(validateApiKeyFormat('straico', 'straico_1234567890abcdef1234567890abcdef')).toBe(true);
+    expect(validateApiKeyFormat('straico', 'valid-straico-api-key-12345')).toBe(true);
+    expect(validateApiKeyFormat('straico', 'short')).toBe(false);
     expect(validateApiKeyFormat('cohere', 'co_1234567890abcdef1234567890abcdef')).toBe(true);
   });
 

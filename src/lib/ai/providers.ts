@@ -106,9 +106,16 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
     displayName: 'Straico',
     description: 'Multi-model AI platform with access to various providers',
     apiKeyLabel: 'Straico API Key',
-    apiKeyPlaceholder: 'straico_...',
-    baseUrl: 'https://api.straico.com/v1',
+    apiKeyPlaceholder: 'your-straico-api-key',
+    baseUrl: 'https://api.straico.com/v0',
     models: [
+      {
+        id: 'auto',
+        name: 'Smart Model Selection',
+        description: 'Let Straico choose the best model for your request',
+        maxTokens: 200000,
+        costPer1kTokens: { input: 0.01, output: 0.03 }
+      },
       {
         id: 'gpt-4',
         name: 'GPT-4 (via Straico)',
@@ -117,11 +124,25 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
         costPer1kTokens: { input: 0.035, output: 0.07 }
       },
       {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo (via Straico)',
+        description: 'GPT-3.5 Turbo through Straico platform',
+        maxTokens: 16385,
+        costPer1kTokens: { input: 0.002, output: 0.003 }
+      },
+      {
         id: 'claude-3-opus',
         name: 'Claude 3 Opus (via Straico)',
         description: 'Claude 3 Opus through Straico platform',
         maxTokens: 200000,
         costPer1kTokens: { input: 0.02, output: 0.08 }
+      },
+      {
+        id: 'claude-3-sonnet',
+        name: 'Claude 3 Sonnet (via Straico)',
+        description: 'Claude 3 Sonnet through Straico platform',
+        maxTokens: 200000,
+        costPer1kTokens: { input: 0.004, output: 0.018 }
       }
     ],
     defaultSettings: {
@@ -191,7 +212,8 @@ export function validateApiKeyFormat(provider: AIProviderType, apiKey: string): 
     case 'anthropic':
       return apiKey.startsWith('sk-ant-') && apiKey.length > 20;
     case 'straico':
-      return apiKey.startsWith('straico_') && apiKey.length > 20;
+      // Straico API keys don't require a specific prefix, just need to be non-empty and reasonable length
+      return apiKey.length > 10;
     case 'cohere':
       return apiKey.startsWith('co_') && apiKey.length > 20;
     default:

@@ -35,7 +35,9 @@
     "project:test-system": "tsx scripts/test-project-system.ts",
     "feature-flags:init": "tsx scripts/init-feature-flags.ts",
     "feature-flags:test": "tsx scripts/test-feature-flags.ts",
-    "core-system:test": "tsx scripts/test-core-project-system-integration.ts"
+    "core-system:test": "tsx scripts/test-core-project-system-integration.ts",
+    "ai:test-straico": "tsx scripts/test-straico-integration.ts",
+    "ai:test-straico-comprehensive": "tsx scripts/test-straico-comprehensive.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

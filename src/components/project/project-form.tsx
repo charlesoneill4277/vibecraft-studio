@@ -237,8 +237,11 @@ export function ProjectForm({ mode, project, onSubmit, onCancel, loading }: Proj
                     )}
                     {formData.settings.defaultAIProvider === 'straico' && (
                       <>
+                        <SelectItem value="auto">Smart Model Selection</SelectItem>
                         <SelectItem value="gpt-4">GPT-4 (Straico)</SelectItem>
-                        <SelectItem value="claude-3">Claude 3 (Straico)</SelectItem>
+                        <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (Straico)</SelectItem>
+                        <SelectItem value="claude-3-opus">Claude 3 Opus (Straico)</SelectItem>
+                        <SelectItem value="claude-3-sonnet">Claude 3 Sonnet (Straico)</SelectItem>
                       </>
                     )}
                     {formData.settings.defaultAIProvider === 'cohere' && (

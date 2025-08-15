@@ -434,21 +434,198 @@ export class UnifiedAIClient {
   }
 
   /**
-   * Placeholder implementations for other providers
+   * Straico API implementation
    */
   private async makeStraicoRequest(
     apiKey: string,
     request: ChatCompletionRequest
   ): Promise<ChatCompletionResponse> {
-    throw new Error('Straico implementation not yet available');
+    // Prepare request body according to Straico v0 API spec
+    const requestBody: any = {
+      messages: request.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      max_tokens: request.maxTokens,
+      temperature: request.temperature,
+      stream: false,
+    };
+
+    // Include either model OR smart_llm_selector, not both
+    if (request.model && request.model !== 'auto') {
+      requestBody.model = request.model;
+    } else {
+      requestBody.smart_llm_selector = true;
+    }
+
+    const response = await fetch('https://api.straico.com/v0/prompt/completion', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `Straico API error: ${response.status}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      } catch {
+        errorMessage += ` ${errorText}`;
+      }
+      
+      // Handle specific error cases
+      if (response.status === 401) {
+        throw new Error('Invalid API key format or unauthorized access');
+      } else if (response.status === 403) {
+        throw new Error('API key does not have permission to access this resource');
+      } else if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    
+    // Handle Straico response format
+    const content = data.completion?.choices?.[0]?.message?.content || 
+                   data.choices?.[0]?.message?.content || 
+                   data.completion || 
+                   data.response || 
+                   '';
+    
+    const usage = data.usage || data.completion?.usage || {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0
+    };
+    
+    return {
+      id: data.id || `straico-${Date.now()}`,
+      content,
+      model: data.model || request.model || 'unknown',
+      usage: {
+        promptTokens: usage.prompt_tokens || 0,
+        completionTokens: usage.completion_tokens || 0,
+        totalTokens: usage.total_tokens || usage.prompt_tokens + usage.completion_tokens || 0,
+      },
+      finishReason: data.finish_reason || data.completion?.choices?.[0]?.finish_reason || 'stop',
+    };
   }
 
   private async *makeStraicoStreamRequest(
     apiKey: string,
     request: ChatCompletionRequest
   ): AsyncGenerator<StreamingResponse, void, unknown> {
-    throw new Error('Straico streaming implementation not yet available');
+    // Prepare request body according to Straico v0 API spec
+    const requestBody: any = {
+      messages: request.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      max_tokens: request.maxTokens,
+      temperature: request.temperature,
+      stream: true,
+    };
+
+    // Include either model OR smart_llm_selector, not both
+    if (request.model && request.model !== 'auto') {
+      requestBody.model = request.model;
+    } else {
+      requestBody.smart_llm_selector = true;
+    }
+
+    const response = await fetch('https://api.straico.com/v0/prompt/completion', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `Straico API error: ${response.status}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      } catch {
+        errorMessage += ` ${errorText}`;
+      }
+      
+      if (response.status === 401) {
+        throw new Error('Invalid API key format or unauthorized access');
+      } else if (response.status === 403) {
+        throw new Error('API key does not have permission to access this resource');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content || 
+                           parsed.completion?.choices?.[0]?.delta?.content || 
+                           parsed.delta || 
+                           '';
+              
+              content += delta;
+
+              yield {
+                id: parsed.id || `straico-${Date.now()}`,
+                content,
+                delta,
+                done: false,
+                usage: parsed.usage ? {
+                  promptTokens: parsed.usage.prompt_tokens || 0,
+                  completionTokens: parsed.usage.completion_tokens || 0,
+                  totalTokens: parsed.usage.total_tokens || 0,
+                } : undefined,
+              };
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
+
+
 
   private async makeCohereRequest(
     apiKey: string,

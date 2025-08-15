@@ -83,7 +83,7 @@ export function ProviderConfigDialog({
                   <div className="border rounded-lg p-4">
                     <h4 className="font-medium mb-2">⚡ Straico</h4>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Access multiple AI models through a single API. Get your API key from Straico.
+                      Access multiple AI models through a single API. Use your API key directly.
                     </p>
                     <Button variant="outline" size="sm" asChild>
                       <a href="https://platform.straico.com/" target="_blank" rel="noopener noreferrer">
