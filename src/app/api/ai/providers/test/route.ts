@@ -108,48 +108,75 @@ async function testAnthropicConnection(apiKey: string): Promise<TestResult> {
  */
 async function testStraicoConnection(apiKey: string): Promise<TestResult> {
   try {
-    // Test with the correct v0 API format
-    const response = await fetch('https://api.straico.com/v0/prompt/completion', {
-      method: 'POST',
+    // Use the lightweight models endpoint for API key validation (per Straico docs)
+    // This only requires auth and returns quickly, ideal for key testing.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    const url = 'https://api.straico.com/v1/models';
+
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
+        // IMPORTANT: exact format 'Bearer <key>' with single space
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        smart_llm_selector: true,
-        messages: [
-          { role: 'user', content: 'Hi' }
-        ],
-        max_tokens: 1,
-        temperature: 0.1,
-      }),
-    });
+      signal: controller.signal,
+    }).catch(err => {
+      // fetch throws on abort / network
+      throw err;
+    }).finally(() => clearTimeout(timeout));
 
     if (response.ok) {
       return { success: true, message: 'Straico API key is valid' };
-    } else if (response.status === 401) {
-      return { success: false, error: 'Invalid or expired Straico API key. Please check your API key is correct and active.' };
-    } else if (response.status === 403) {
-      return { success: false, error: 'Straico API key does not have permission to access this resource' };
-    } else if (response.status === 429) {
-      return { success: false, error: 'Straico API rate limit exceeded' };
-    } else {
-      const errorText = await response.text();
-      let errorMessage = `Straico API error: ${response.status}`;
-      
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error?.message || errorData.message || errorMessage;
-      } catch {
-        errorMessage += ` ${errorText}`;
-      }
-      
-      return { success: false, error: errorMessage };
     }
+
+    // Capture body (without leaking key) for server-side diagnostics
+    let rawBody = '';
+    try {
+      rawBody = await response.text();
+    } catch {
+      rawBody = '<unreadable body>';
+    }
+    const truncatedBody = rawBody.length > 500 ? rawBody.slice(0, 500) + '…(truncated)' : rawBody;
+
+    // Attempt to parse JSON error for logging clarity
+    let parsedMessage: string | undefined;
+    try {
+      const parsed = JSON.parse(rawBody);
+      parsedMessage = parsed.error?.message || parsed.message;
+    } catch {/* ignore */}
+
+    // Structured server-side log (do NOT include apiKey)
+    console.error('[Straico Test] Key validation failed', {
+      status: response.status,
+      statusText: response.statusText,
+      endpoint: url,
+      message: parsedMessage,
+      body: truncatedBody,
+    });
+
+    if (response.status === 401) {
+      return { success: false, error: 'Invalid Straico API key' };
+    }
+    if (response.status === 403) {
+      return { success: false, error: 'Straico API key lacks required permissions' };
+    }
+    if (response.status === 429) {
+      return { success: false, error: 'Straico rate limit exceeded (try again later)' };
+    }
+
+    return { success: false, error: 'Straico API key test failed' };
   } catch (error) {
-    return { 
-      success: false, 
-      error: `Failed to connect to Straico API: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    // Network / timeout / unexpected errors
+    const isAbort = (error instanceof Error) && error.name === 'AbortError';
+    console.error('[Straico Test] Request error', {
+      type: isAbort ? 'timeout' : 'network',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return {
+      success: false,
+      error: isAbort ? 'Straico API key test timed out' : 'Straico API key test failed'
     };
   }
 }
