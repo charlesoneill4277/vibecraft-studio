@@ -51,6 +51,9 @@ export const config = {
     githubIntegration:
       process.env.NEXT_PUBLIC_ENABLE_GITHUB_INTEGRATION === 'true',
     analytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
+    ai_chat: process.env.NEXT_PUBLIC_ENABLE_AI_CHAT === 'true',
+    knowledge_base: process.env.NEXT_PUBLIC_ENABLE_KNOWLEDGE_BASE === 'true',
+    code_integration: process.env.NEXT_PUBLIC_ENABLE_CODE_INTEGRATION === 'true',
   },
 
   // Debug Settings
