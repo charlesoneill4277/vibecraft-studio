@@ -123,12 +123,11 @@ export function useAIProviders(): UseAIProvidersReturn {
       });
 
       const data = await response.json();
-      
-      if (data.valid === true) {
+      if (response.ok && (data.success || data.valid)) {
         return { valid: true };
-      } else {
-        return { valid: false, error: data.error || 'API key test failed' };
       }
+      const msg = data.message || data.error || `API key test failed (status ${response.status})`;
+      return { valid: false, error: msg };
     } catch (err) {
       console.error('Error testing API key:', err);
       return { valid: false, error: 'Failed to test API key. Please check your connection.' };

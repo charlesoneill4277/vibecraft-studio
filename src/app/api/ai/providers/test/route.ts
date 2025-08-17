@@ -110,61 +110,65 @@ async function testStraicoConnection(apiKey: string): Promise<TestResult> {
   try {
     // Use the lightweight models endpoint for API key validation (per Straico docs)
     // This only requires auth and returns quickly, ideal for key testing.
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
-    const url = 'https://api.straico.com/v1/models';
+    const attempt = async (url: string) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const resp = await fetch(url, {
+          method: 'GET',
+            headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        });
+        return resp;
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        // IMPORTANT: exact format 'Bearer <key>' with single space
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json',
-      },
-      signal: controller.signal,
-    }).catch(err => {
-      // fetch throws on abort / network
-      throw err;
-    }).finally(() => clearTimeout(timeout));
+    // Primary (doc-specified) endpoint
+    let response = await attempt('https://api.straico.com/v1/models');
+    let usedEndpoint = 'v1';
+
+    // Fallback for environments/accounts still on v0 (observed in existing codebase)
+    if (response.status === 404 || response.status === 400) {
+      console.warn('[Straico Test] v1/models returned', response.status, '— attempting v0/models fallback');
+      const fallback = await attempt('https://api.straico.com/v0/models');
+      if (fallback.ok) {
+        console.info('[Straico Test] Fallback to v0/models succeeded');
+        return { success: true, message: 'Straico API key is valid' };
+      }
+      // If fallback also fails, keep original response for diagnostics unless it was network ok
+      if (!fallback.ok) {
+        response = fallback; // Use fallback for error logging
+        usedEndpoint = 'v0';
+      }
+    }
 
     if (response.ok) {
       return { success: true, message: 'Straico API key is valid' };
     }
 
-    // Capture body (without leaking key) for server-side diagnostics
     let rawBody = '';
-    try {
-      rawBody = await response.text();
-    } catch {
-      rawBody = '<unreadable body>';
-    }
+    try { rawBody = await response.text(); } catch { rawBody = '<unreadable body>'; }
     const truncatedBody = rawBody.length > 500 ? rawBody.slice(0, 500) + '…(truncated)' : rawBody;
-
-    // Attempt to parse JSON error for logging clarity
     let parsedMessage: string | undefined;
-    try {
-      const parsed = JSON.parse(rawBody);
-      parsedMessage = parsed.error?.message || parsed.message;
-    } catch {/* ignore */}
+    try { const parsed = JSON.parse(rawBody); parsedMessage = parsed.error?.message || parsed.message; } catch { /* ignore */ }
 
-    // Structured server-side log (do NOT include apiKey)
     console.error('[Straico Test] Key validation failed', {
+      endpointVersionTried: usedEndpoint,
       status: response.status,
       statusText: response.statusText,
-      endpoint: url,
       message: parsedMessage,
       body: truncatedBody,
     });
 
-    if (response.status === 401) {
-      return { success: false, error: 'Invalid Straico API key' };
-    }
-    if (response.status === 403) {
-      return { success: false, error: 'Straico API key lacks required permissions' };
-    }
-    if (response.status === 429) {
-      return { success: false, error: 'Straico rate limit exceeded (try again later)' };
-    }
+    if (response.status === 401) return { success: false, error: 'Invalid Straico API key' };
+    if (response.status === 403) return { success: false, error: 'Straico API key lacks required permissions' };
+    if (response.status === 429) return { success: false, error: 'Straico rate limit exceeded (try again later)' };
+    if (response.status === 404) return { success: false, error: 'Straico models endpoint not found' };
 
     return { success: false, error: 'Straico API key test failed' };
   } catch (error) {
@@ -224,7 +228,7 @@ export const POST = withAPIErrorHandling(async (request: NextRequest) => {
 
   if (!provider || !apiKey) {
     return NextResponse.json(
-      { error: 'Provider and API key are required' },
+      { success: false, valid: false, message: 'Provider and API key are required' },
       { status: 400 }
     );
   }
@@ -233,7 +237,7 @@ export const POST = withAPIErrorHandling(async (request: NextRequest) => {
   const validProviders: AIProviderType[] = ['openai', 'anthropic', 'straico', 'cohere'];
   if (!validProviders.includes(provider)) {
     return NextResponse.json(
-      { error: 'Invalid provider type' },
+      { success: false, valid: false, message: 'Invalid provider type' },
       { status: 400 }
     );
   }
@@ -244,8 +248,9 @@ export const POST = withAPIErrorHandling(async (request: NextRequest) => {
   if (!isValidFormat) {
     return NextResponse.json(
       { 
+        success: false,
         valid: false, 
-        error: getApiKeyFormatError(provider)
+        message: getApiKeyFormatError(provider)
       },
       { status: 400 }
     );
@@ -256,16 +261,23 @@ export const POST = withAPIErrorHandling(async (request: NextRequest) => {
   
   if (testResult.success) {
     return NextResponse.json({ 
+      success: true,
       valid: true, 
-      message: testResult.message || 'API key is valid and working' 
-    });
-  } else {
-    return NextResponse.json(
-      { 
-        valid: false, 
-        error: testResult.error || 'API key test failed' 
-      },
-      { status: 400 }
-    );
+      message: testResult.message || 'Connection successful!' 
+    }, { status: 200 });
   }
+
+  const errorMsg = testResult.error || 'API key test failed';
+  let status = 502; // Bad gateway / upstream error default
+  if (/invalid/i.test(errorMsg) && /api key/i.test(errorMsg)) status = 401;
+  else if (/permission|unauthorized/i.test(errorMsg)) status = 403;
+  else if (/rate limit/i.test(errorMsg)) status = 429;
+  else if (/timed out|timeout/i.test(errorMsg)) status = 504; // Gateway timeout
+  else if (/not found/i.test(errorMsg)) status = 502; // treat as upstream issue
+
+  return NextResponse.json({
+    success: false,
+    valid: false,
+    message: errorMsg
+  }, { status });
 });
