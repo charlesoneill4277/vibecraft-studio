@@ -1,4 +1,4 @@
-import { db } from '@/lib/supabase/database';
+import { db, ServerDatabaseClient } from '@/lib/supabase/database';
 import { encrypt, decrypt } from './encryption';
 import { AIProviderType, validateApiKeyFormat, getProviderConfig } from './providers';
 import type { AIProvider } from '@/types';
@@ -11,8 +11,10 @@ export class AIProviderService {
     userId: string,
     provider: AIProviderType,
     apiKey: string,
-    settings?: Partial<AIProvider['settings']>
+    settings?: Partial<AIProvider['settings']>,
+    serverDb?: ServerDatabaseClient
   ): Promise<AIProvider> {
+    console.log('[AIProviderService] createProvider invoked', { userId, provider, hasSettings: !!settings });
     // Validate API key format
     if (!validateApiKeyFormat(provider, apiKey)) {
       throw new Error(`Invalid API key format for ${provider}`);
@@ -28,29 +30,68 @@ export class AIProviderService {
     };
 
     // Encrypt the API key
-    const encryptedApiKey = encrypt(apiKey);
+    let encryptedApiKey: string;
+    try {
+      encryptedApiKey = encrypt(apiKey);
+    } catch (e: any) {
+      console.error('[AIProviderService] encryption failure', { message: e?.message });
+      throw new Error('Failed to encrypt API key');
+    }
+    if (!encryptedApiKey || typeof encryptedApiKey !== 'string') {
+      console.error('[AIProviderService] encryption produced invalid value');
+      throw new Error('Encryption returned invalid value');
+    }
+    console.log('[AIProviderService] encrypted key prepared', { length: encryptedApiKey.length });
 
     // Check if provider already exists for this user
-    const existingProviders = await db.getAIProviders();
-    const existingProvider = existingProviders.find(p => p.provider === provider);
+    console.info('[AIProviderService] createProvider start', { userId, provider });
+  const dataClient = serverDb ?? db;
+  let existingProviders: any[] = [];
+  try {
+    existingProviders = await (dataClient as any).getAIProviders(userId);
+  } catch (e: any) {
+    console.error('[AIProviderService] getAIProviders failed', { message: e?.message, code: e?.code });
+    throw e;
+  }
+  const existingProvider = existingProviders.find(p => p.provider === provider && p.user_id === userId);
     
     if (existingProvider) {
-      // Update existing provider
-      return await this.updateProvider(existingProvider.id, {
+      console.info('[AIProviderService] existing provider found, updating', { id: existingProvider.id });
+      // Update existing provider using the correct database client
+      const updatedProvider = await (dataClient as any).updateAIProvider(existingProvider.id, {
         api_key_encrypted: encryptedApiKey,
         is_active: true,
         settings: defaultSettings
       });
+      console.info('[AIProviderService] provider updated successfully', { id: updatedProvider.id });
+      return this.mapDatabaseToType(updatedProvider);
     }
 
     // Create new provider
-    const newProvider = await db.createAIProvider({
+    console.info('[AIProviderService] inserting new provider', {
       user_id: userId,
       provider,
-      api_key_encrypted: encryptedApiKey,
-      is_active: true,
-      settings: defaultSettings
+      settings: defaultSettings,
+      keyLen: encryptedApiKey.length
     });
+    let newProvider;
+    try {
+      newProvider = await (dataClient as any).createAIProvider({
+        user_id: userId,
+        provider,
+        api_key_encrypted: encryptedApiKey,
+        is_active: true,
+        settings: defaultSettings
+      });
+    } catch (e: any) {
+      console.error('[AIProviderService] insert failed', { message: e?.message, code: e?.code });
+      throw e;
+    }
+    if (!newProvider) {
+      console.error('[AIProviderService] insert returned no provider and no error');
+      throw new Error('Insert returned no data');
+    }
+    console.info('[AIProviderService] new provider inserted', { id: newProvider.id });
 
     return this.mapDatabaseToType(newProvider);
   }
@@ -59,7 +100,7 @@ export class AIProviderService {
    * Get all AI providers for a user
    */
   async getProviders(userId?: string): Promise<AIProvider[]> {
-    const providers = await db.getAIProviders();
+    const providers = await db.getAIProviders(userId);
     return providers.map(this.mapDatabaseToType);
   }
 
@@ -83,7 +124,7 @@ export class AIProviderService {
       settings?: any;
     }
   ): Promise<AIProvider> {
-    const updatedProvider = await db.updateAIProvider(id, updates);
+  const updatedProvider = await db.updateAIProvider(id, updates);
     return this.mapDatabaseToType(updatedProvider);
   }
 

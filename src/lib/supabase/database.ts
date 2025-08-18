@@ -211,37 +211,77 @@ export class DatabaseClient {
   }
 
   // AI Providers
-  async getAIProviders() {
-    const { data, error } = await this.supabase
+  async getAIProviders(userId?: string) {
+    let query = this.supabase
       .from('ai_providers')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    const { data, error } = await query
 
     if (error) throw error
     return data
   }
 
   async createAIProvider(provider: Inserts<'ai_providers'>) {
+    console.info('[DB] createAIProvider: inserting', {
+      provider: provider.provider,
+      user_id: provider.user_id,
+      has_key: !!provider.api_key_encrypted,
+      is_active: provider.is_active,
+    });
     const { data, error } = await this.supabase
       .from('ai_providers')
       .insert(provider)
       .select()
-      .single()
-
-    if (error) throw error
-    return data
+      .single();
+    console.info('[DB] createAIProvider: response', {
+      hasData: !!data, error: error ? { message: error.message, code: (error as any).code } : null,
+    });
+    if (error) {
+      console.error('[DB] createAIProvider: error detail', error);
+      throw error;
+    }
+    return data;
   }
 
   async updateAIProvider(id: string, updates: Updates<'ai_providers'>) {
+    console.info('[DB] updateAIProvider: updating', {
+      id,
+      updates: {
+        ...updates,
+        api_key_encrypted: updates.api_key_encrypted ? '[ENCRYPTED]' : undefined
+      }
+    });
+    
     const { data, error } = await this.supabase
       .from('ai_providers')
       .update(updates)
       .eq('id', id)
       .select()
-      .single()
 
-    if (error) throw error
-    return data
+    console.info('[DB] updateAIProvider: response', {
+      hasData: !!data,
+      dataLength: data?.length,
+      error: error ? { message: error.message, code: (error as any).code } : null,
+    });
+
+    if (error) {
+      console.error('[DB] updateAIProvider: error detail', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error('No provider found with the given ID');
+    }
+    
+    if (data.length > 1) {
+      console.warn('[DB] updateAIProvider: multiple rows returned, using first');
+    }
+    
+    return data[0]
   }
 
   async deleteAIProvider(id: string) {
@@ -353,6 +393,82 @@ export class ServerDatabaseClient {
 
     if (error) throw error
     return data
+  }
+
+  // --- AI Providers (server-side with auth context) ---
+  async getAIProviders(userId?: string) {
+    let query = this.supabase.from('ai_providers').select('*').order('created_at', { ascending: false });
+    if (userId) query = query.eq('user_id', userId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  }
+
+  async createAIProvider(provider: Inserts<'ai_providers'>) {
+    console.info('[ServerDB] createAIProvider inserting', {
+      provider: provider.provider,
+      user_id: provider.user_id,
+      has_key: !!provider.api_key_encrypted,
+      is_active: provider.is_active,
+    });
+    const { data, error } = await this.supabase
+      .from('ai_providers')
+      .insert(provider)
+      .select()
+      .single();
+    console.info('[ServerDB] createAIProvider response', {
+      hasData: !!data,
+      error: error ? { message: error.message, code: (error as any).code } : null,
+    });
+    if (error) {
+      console.error('[ServerDB] createAIProvider error detail', error);
+      throw error;
+    }
+    return data;
+  }
+
+  async updateAIProvider(id: string, updates: Updates<'ai_providers'>) {
+    console.info('[ServerDB] updateAIProvider: updating', {
+      id,
+      updates: {
+        ...updates,
+        api_key_encrypted: updates.api_key_encrypted ? '[ENCRYPTED]' : undefined
+      }
+    });
+    
+    const { data, error } = await this.supabase
+      .from('ai_providers')
+      .update(updates)
+      .eq('id', id)
+      .select();
+      
+    console.info('[ServerDB] updateAIProvider: response', {
+      hasData: !!data,
+      error: error ? { message: error.message, code: (error as any).code } : null,
+    });
+
+    if (error) {
+      console.error('[ServerDB] updateAIProvider: error detail', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error('No provider found with the given ID');
+    }
+    
+    if (data.length > 1) {
+      console.warn('[ServerDB] updateAIProvider: multiple rows returned, using first');
+    }
+    
+    return data[0];
+  }
+
+  async deleteAIProvider(id: string) {
+    const { error } = await this.supabase
+      .from('ai_providers')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   }
 }
 
