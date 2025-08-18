@@ -44,24 +44,38 @@ export function useAIProviders(): UseAIProvidersReturn {
   ) => {
     try {
       setError(null);
-      
+      const payload = { provider, apiKey, settings };
+      console.log('[AI Providers] createProvider payload (apiKey length only):', {
+        provider,
+        apiKeyLength: typeof apiKey === 'string' ? apiKey.length : 0,
+        hasSettings: !!settings,
+      });
       const response = await fetch('/api/ai/providers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ provider, apiKey, settings }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create provider');
+        let errorMessage = 'Failed to create provider';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.warn('[AI Providers] createProvider server error response:', errorData);
+        } catch (parseErr) {
+          console.warn('[AI Providers] createProvider could not parse error JSON', parseErr);
+        }
+        throw new Error(errorMessage);
       }
 
       await fetchProviders(); // Refresh the list
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      throw err;
+      console.dir(err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      throw err; // rethrow so caller UI can react
     }
   };
 
