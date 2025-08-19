@@ -16,11 +16,11 @@ export interface Project {
   project_members?: Array<{
     role: string
     user_id: string
-    users: {
+    users?: {
       full_name: string | null
       email: string
       avatar_url?: string | null
-    }
+    } | null
   }>
 }
 

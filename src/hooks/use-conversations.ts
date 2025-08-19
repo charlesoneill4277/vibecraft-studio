@@ -1,130 +1,99 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { 
-  Conversation, 
-  ConversationSummary, 
-  ChatMessage 
-} from '@/types'
-
-interface UseConversationsOptions {
-  projectId: string
-  autoRefresh?: boolean
-  refreshInterval?: number
-}
-
-interface ConversationSearchOptions {
-  query?: string
-  tags?: string[]
-  isArchived?: boolean
-  isPinned?: boolean
-  limit?: number
-  offset?: number
-  sortBy?: 'created_at' | 'updated_at' | 'last_message_at' | 'title'
-  sortOrder?: 'asc' | 'desc'
-}
+import { useState, useEffect, useCallback } from 'react';
+import type { Conversation, ConversationSummary, ChatMessage } from '@/types';
 
 interface UseConversationsReturn {
-  conversations: ConversationSummary[]
-  currentConversation: Conversation | null
-  loading: boolean
-  error: string | null
-  total: number
-  
-  // Conversation management
-  createConversation: (title?: string, description?: string) => Promise<Conversation>
-  getConversation: (conversationId: string) => Promise<Conversation | null>
+  conversations: ConversationSummary[];
+  loading: boolean;
+  error: string | null;
+  currentConversation: Conversation | null;
+  createConversation: (projectId: string, title?: string, description?: string) => Promise<Conversation>;
+  getConversation: (conversationId: string) => Promise<Conversation | null>;
   updateConversation: (conversationId: string, updates: {
-    title?: string
-    description?: string
-    tags?: string[]
-    isArchived?: boolean
-    isPinned?: boolean
-  }) => Promise<Conversation>
-  deleteConversation: (conversationId: string) => Promise<void>
-  
-  // Search and filtering
-  searchConversations: (options: ConversationSearchOptions) => Promise<void>
-  searchMessages: (query: string, conversationIds?: string[]) => Promise<{ messages: ChatMessage[], total: number }>
-  
-  // Conversation branching
-  branchConversation: (sourceConversationId: string, branchPointMessageId: string, title?: string) => Promise<Conversation>
-  
-  // Import/Export
-  exportConversation: (conversationId: string) => Promise<void>
-  importConversation: (file: File) => Promise<Conversation>
-  
-  // Utilities
-  refreshConversations: () => Promise<void>
-  setCurrentConversation: (conversation: Conversation | null) => void
-  getConversationStats: () => Promise<{
-    totalConversations: number
-    archivedConversations: number
-    pinnedConversations: number
-    totalMessages: number
-    totalTokens: number
-    totalCost: number
-  }>
+    title?: string;
+    description?: string;
+    tags?: string[];
+    isArchived?: boolean;
+    isPinned?: boolean;
+  }) => Promise<Conversation>;
+  deleteConversation: (conversationId: string) => Promise<void>;
+  searchMessages: (projectId: string, query: string, conversationIds?: string[]) => Promise<ChatMessage[]>;
+  refreshConversations: (projectId: string) => Promise<void>;
+  setCurrentConversation: (conversation: Conversation | null) => void;
 }
 
-export function useConversations({
-  projectId,
-  autoRefresh = false,
-  refreshInterval = 30000
-}: UseConversationsOptions): UseConversationsReturn {
-  const [conversations, setConversations] = useState<ConversationSummary[]>([])
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [total, setTotal] = useState(0)
+export function useConversations(): UseConversationsReturn {
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load conversations on mount and when projectId changes
-  useEffect(() => {
-    if (projectId) {
-      refreshConversations()
-    }
-  }, [projectId])
-
-  // Auto-refresh if enabled
-  useEffect(() => {
-    if (autoRefresh && projectId) {
-      const interval = setInterval(() => {
-        refreshConversations()
-      }, refreshInterval)
-
-      return () => clearInterval(interval)
-    }
-  }, [autoRefresh, refreshInterval, projectId])
-
-  const refreshConversations = useCallback(async () => {
-    if (!projectId) return
-
+  const fetchConversations = useCallback(async (projectId: string, options: {
+    query?: string;
+    tags?: string[];
+    isArchived?: boolean;
+    isPinned?: boolean;
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  } = {}) => {
     try {
-      setLoading(true)
-      setError(null)
-
-      const response = await fetch(`/api/conversations?projectId=${encodeURIComponent(projectId)}`)
+      setLoading(true);
+      setError(null);
+      
+      console.log('[Frontend] Fetching conversations for project:', projectId);
+      
+      const params = new URLSearchParams({
+        projectId,
+        ...Object.fromEntries(
+          Object.entries(options).map(([key, value]) => [
+            key,
+            Array.isArray(value) ? value.join(',') : String(value)
+          ])
+        )
+      });
+      
+      const response = await fetch(`/api/conversations?${params}`);
+      console.log('[Frontend] Conversations response:', {
+        status: response.status,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to load conversations' }))
-        throw new Error(errorData.error || 'Failed to load conversations')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to fetch conversations');
       }
-
-      const data = await response.json()
-      setConversations(data.conversations || [])
-      setTotal(data.total || 0)
+      
+      const data = await response.json();
+      console.log('[Frontend] Conversations data received:', {
+        success: data.success,
+        conversationsCount: data.data?.conversations?.length || 0
+      });
+      
+      if (data.success && data.data) {
+        setConversations(data.data.conversations || []);
+      } else {
+        setConversations([]);
+      }
     } catch (err) {
-      console.error('Error refreshing conversations:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load conversations')
+      console.error('[Frontend] fetchConversations error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setConversations([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [projectId])
+  }, []);
 
   const createConversation = useCallback(async (
+    projectId: string,
     title?: string,
     description?: string
   ): Promise<Conversation> => {
     try {
-      setError(null)
-
+      setError(null);
+      
+      console.log('[Frontend] Creating conversation:', { projectId, title });
+      
       const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: {
@@ -135,328 +104,228 @@ export function useConversations({
           title: title || 'New Conversation',
           description
         }),
-      })
+      });
+
+      console.log('[Frontend] Create conversation response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create conversation')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to create conversation');
       }
 
-      const conversation = await response.json()
+      const data = await response.json();
+      console.log('[Frontend] Conversation created:', data.data?.conversation?.id);
       
-      // Refresh conversations list
-      await refreshConversations()
-      
-      return conversation
+      if (data.success && data.data?.conversation) {
+        // Refresh conversations list
+        await fetchConversations(projectId);
+        return data.data.conversation;
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
+      console.error('[Frontend] createConversation error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      throw err;
     }
-  }, [projectId, refreshConversations])
+  }, [fetchConversations]);
 
-  const getConversation = useCallback(async (
-    conversationId: string
-  ): Promise<Conversation | null> => {
+  const getConversation = useCallback(async (conversationId: string): Promise<Conversation | null> => {
     try {
-      setError(null)
+      setError(null);
+      
+      console.log('[Frontend] Getting conversation:', conversationId);
+      
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      console.log('[Frontend] Get conversation response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
-      const response = await fetch(`/api/conversations/${conversationId}`)
       if (!response.ok) {
         if (response.status === 404) {
-          return null
+          return null;
         }
-        throw new Error('Failed to get conversation')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to get conversation');
       }
 
-      return await response.json()
+      const data = await response.json();
+      console.log('[Frontend] Conversation retrieved:', data.data?.conversation?.id);
+      
+      if (data.success && data.data?.conversation) {
+        return data.data.conversation;
+      }
+      
+      return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get conversation')
-      return null
+      console.error('[Frontend] getConversation error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      return null;
     }
-  }, [])
+  }, []);
 
   const updateConversation = useCallback(async (
     conversationId: string,
     updates: {
-      title?: string
-      description?: string
-      tags?: string[]
-      isArchived?: boolean
-      isPinned?: boolean
+      title?: string;
+      description?: string;
+      tags?: string[];
+      isArchived?: boolean;
+      isPinned?: boolean;
     }
   ): Promise<Conversation> => {
     try {
-      setError(null)
-
+      setError(null);
+      
+      console.log('[Frontend] Updating conversation:', { conversationId, updates });
+      
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(updates),
-      })
+      });
+
+      console.log('[Frontend] Update conversation response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update conversation')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to update conversation');
       }
 
-      const updatedConversation = await response.json()
+      const data = await response.json();
+      console.log('[Frontend] Conversation updated:', data.data?.conversation?.id);
       
-      // Update current conversation if it's the one being updated
-      if (currentConversation?.id === conversationId) {
-        setCurrentConversation(updatedConversation)
+      if (data.success && data.data?.conversation) {
+        // Update current conversation if it's the one being updated
+        if (currentConversation?.id === conversationId) {
+          setCurrentConversation(data.data.conversation);
+        }
+        
+        // Update conversations list
+        setConversations(prev => prev.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, ...data.data.conversation }
+            : conv
+        ));
+        
+        return data.data.conversation;
+      } else {
+        throw new Error('Invalid response format');
       }
-      
-      // Refresh conversations list
-      await refreshConversations()
-      
-      return updatedConversation
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
+      console.error('[Frontend] updateConversation error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      throw err;
     }
-  }, [currentConversation, refreshConversations])
+  }, [currentConversation]);
 
-  const deleteConversation = useCallback(async (
-    conversationId: string
-  ): Promise<void> => {
+  const deleteConversation = useCallback(async (conversationId: string): Promise<void> => {
     try {
-      setError(null)
-
+      setError(null);
+      
+      console.log('[Frontend] Deleting conversation:', conversationId);
+      
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'DELETE',
-      })
+      });
+
+      console.log('[Frontend] Delete conversation response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete conversation')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to delete conversation');
       }
 
+      console.log('[Frontend] Conversation deleted successfully');
+      
+      // Remove from conversations list
+      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      
       // Clear current conversation if it's the one being deleted
       if (currentConversation?.id === conversationId) {
-        setCurrentConversation(null)
+        setCurrentConversation(null);
       }
-      
-      // Refresh conversations list
-      await refreshConversations()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
+      console.error('[Frontend] deleteConversation error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      throw err;
     }
-  }, [currentConversation, refreshConversations])
-
-  const searchConversations = useCallback(async (
-    options: ConversationSearchOptions
-  ): Promise<void> => {
-    if (!projectId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams({ projectId })
-      
-      // Only add parameters that have actual values (not undefined/null)
-      Object.entries(options).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (Array.isArray(value)) {
-            if (value.length > 0) {
-              params.append(key, value.join(','))
-            }
-          } else {
-            params.append(key, String(value))
-          }
-        }
-      })
-
-      const response = await fetch(`/api/conversations/search?${params}`)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to search conversations' }))
-        throw new Error(errorData.error || 'Failed to search conversations')
-      }
-
-      const data = await response.json()
-      setConversations(data.conversations || [])
-      setTotal(data.total || 0)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to search conversations')
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId])
+  }, [currentConversation]);
 
   const searchMessages = useCallback(async (
+    projectId: string,
     query: string,
     conversationIds?: string[]
-  ): Promise<{ messages: ChatMessage[], total: number }> => {
+  ): Promise<ChatMessage[]> => {
     try {
-      setError(null)
-
+      setError(null);
+      
+      console.log('[Frontend] Searching messages:', { projectId, query, conversationIds });
+      
       const params = new URLSearchParams({
         projectId,
         query,
         ...(conversationIds && { conversationIds: conversationIds.join(',') })
-      })
-
-      const response = await fetch(`/api/conversations/messages/search?${params}`)
-      if (!response.ok) {
-        throw new Error('Failed to search messages')
-      }
-
-      return await response.json()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to search messages'
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    }
-  }, [projectId])
-
-  const branchConversation = useCallback(async (
-    sourceConversationId: string,
-    branchPointMessageId: string,
-    title?: string
-  ): Promise<Conversation> => {
-    try {
-      setError(null)
-
-      const response = await fetch('/api/conversations/branch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sourceConversationId,
-          branchPointMessageId,
-          title
-        }),
-      })
+      });
+      
+      const response = await fetch(`/api/conversations/search?${params}`);
+      console.log('[Frontend] Search messages response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to branch conversation')
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to search messages');
       }
 
-      const branchedConversation = await response.json()
+      const data = await response.json();
+      console.log('[Frontend] Search results:', {
+        messageCount: data.data?.messages?.length || 0
+      });
       
-      // Refresh conversations list
-      await refreshConversations()
-      
-      return branchedConversation
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to branch conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    }
-  }, [refreshConversations])
-
-  const exportConversation = useCallback(async (
-    conversationId: string
-  ): Promise<void> => {
-    try {
-      setError(null)
-
-      const response = await fetch(`/api/conversations/${conversationId}/export`)
-      if (!response.ok) {
-        throw new Error('Failed to export conversation')
+      if (data.success && data.data?.messages) {
+        return data.data.messages;
       }
-
-      const exportData = await response.json()
       
-      // Create and download file
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json'
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `conversation-${conversationId}-${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      return [];
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to export conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
+      console.error('[Frontend] searchMessages error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      return [];
     }
-  }, [])
+  }, []);
 
-  const importConversation = useCallback(async (
-    file: File
-  ): Promise<Conversation> => {
-    try {
-      setError(null)
-
-      const text = await file.text()
-      const exportData = JSON.parse(text)
-
-      const response = await fetch('/api/conversations/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          projectId,
-          exportData
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to import conversation')
-      }
-
-      const importedConversation = await response.json()
-      
-      // Refresh conversations list
-      await refreshConversations()
-      
-      return importedConversation
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to import conversation'
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    }
-  }, [projectId, refreshConversations])
-
-  const getConversationStats = useCallback(async () => {
-    try {
-      setError(null)
-
-      const response = await fetch(`/api/conversations/stats?projectId=${projectId}`)
-      if (!response.ok) {
-        throw new Error('Failed to get conversation stats')
-      }
-
-      return await response.json()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get conversation stats'
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    }
-  }, [projectId])
+  const refreshConversations = useCallback(async (projectId: string) => {
+    await fetchConversations(projectId);
+  }, [fetchConversations]);
 
   return {
     conversations,
-    currentConversation,
     loading,
     error,
-    total,
+    currentConversation,
     createConversation,
     getConversation,
     updateConversation,
     deleteConversation,
-    searchConversations,
     searchMessages,
-    branchConversation,
-    exportConversation,
-    importConversation,
     refreshConversations,
     setCurrentConversation,
-    getConversationStats
-  }
+  };
 }

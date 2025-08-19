@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       content, 
       projectId, 
       providerId, 
+      conversationId,
       model, 
       temperature, 
       maxTokens, 
@@ -27,14 +28,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has access to the project
-    const project = await supabase
+    const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id, user_id')
       .eq('id', projectId)
       .single();
 
-    if (project.error || project.data.user_id !== user.id) {
-      return new Response('Project not found or access denied', { status: 403 });
+    if (projectError || !project) {
+      return new Response('Project not found', { status: 404 });
+    }
+
+    // Check if user is project owner or member
+    const isOwner = project.user_id === user.id;
+    let isMember = false;
+    
+    if (!isOwner) {
+      const { data: membership } = await supabase
+        .from('project_members')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', user.id)
+        .single();
+      
+      isMember = !!membership;
+    }
+
+    if (!isOwner && !isMember) {
+      return new Response('Access denied to project', { status: 403 });
     }
 
     // Create a readable stream for Server-Sent Events
@@ -47,6 +67,7 @@ export async function POST(request: NextRequest) {
             content,
             projectId,
             providerId,
+            conversationId,
             model,
             temperature,
             maxTokens,

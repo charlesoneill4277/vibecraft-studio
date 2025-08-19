@@ -1,116 +1,107 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { conversationService } from '@/lib/conversations/conversation-service'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { conversationService } from '@/lib/conversations/conversation-service';
+import { withAPIErrorHandling } from '@/lib/errors';
 
-export async function GET(
+export const GET = withAPIErrorHandling(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+) => {
+  console.log('[Conversations][GET_BY_ID] Starting request');
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const conversation = await conversationService.getConversation(
-      user.id,
-      params.id
-    )
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: 'Conversation not found' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(conversation)
-  } catch (error) {
-    console.error('Error getting conversation:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to get conversation' },
-      { status: 500 }
-    )
+  if (authError || !user) {
+    console.log('[Conversations][GET_BY_ID] Unauthorized access attempt');
+    throw new Error('Unauthorized');
   }
-}
 
-export async function PATCH(
+  const conversationId = params.id;
+
+  console.log('[Conversations][GET_BY_ID] Getting conversation:', {
+    conversationId,
+    userId: user.id
+  });
+
+  const conversation = await conversationService.getConversation(user.id, conversationId);
+
+  if (!conversation) {
+    throw new Error('Conversation not found or access denied');
+  }
+
+  console.log('[Conversations][GET_BY_ID] Retrieved conversation:', {
+    id: conversation.id,
+    title: conversation.title
+  });
+
+  return { conversation };
+});
+
+export const PATCH = withAPIErrorHandling(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+) => {
+  console.log('[Conversations][PATCH] Starting request');
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { title, description, tags, isArchived, isPinned } = body
-
-    const conversation = await conversationService.updateConversation(
-      user.id,
-      params.id,
-      { title, description, tags, isArchived, isPinned }
-    )
-
-    return NextResponse.json(conversation)
-  } catch (error) {
-    console.error('Error updating conversation:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to update conversation' },
-      { status: 500 }
-    )
+  if (authError || !user) {
+    console.log('[Conversations][PATCH] Unauthorized access attempt');
+    throw new Error('Unauthorized');
   }
-}
 
-export async function DELETE(
+  const conversationId = params.id;
+  const body = await request.json();
+  const { title, description, tags, isArchived, isPinned } = body;
+
+  console.log('[Conversations][PATCH] Updating conversation:', {
+    conversationId,
+    updates: { title, description, tags, isArchived, isPinned },
+    userId: user.id
+  });
+
+  const conversation = await conversationService.updateConversation(user.id, conversationId, {
+    title,
+    description,
+    tags,
+    isArchived,
+    isPinned
+  });
+
+  console.log('[Conversations][PATCH] Conversation updated:', {
+    id: conversation.id,
+    title: conversation.title
+  });
+
+  return { conversation };
+});
+
+export const DELETE = withAPIErrorHandling(async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+) => {
+  console.log('[Conversations][DELETE] Starting request');
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    await conversationService.deleteConversation(user.id, params.id)
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting conversation:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to delete conversation' },
-      { status: 500 }
-    )
+  if (authError || !user) {
+    console.log('[Conversations][DELETE] Unauthorized access attempt');
+    throw new Error('Unauthorized');
   }
-}
+
+  const conversationId = params.id;
+
+  console.log('[Conversations][DELETE] Deleting conversation:', {
+    conversationId,
+    userId: user.id
+  });
+
+  await conversationService.deleteConversation(user.id, conversationId);
+
+  console.log('[Conversations][DELETE] Conversation deleted successfully');
+
+  return { success: true };
+});

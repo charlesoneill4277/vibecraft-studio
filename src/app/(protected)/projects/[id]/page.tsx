@@ -105,15 +105,22 @@ export default function ProjectPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {project.project_members.map((member, index) => (
+                {project.project_members?.map((member, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{member.users.full_name || member.users.email}</p>
-                      <p className="text-sm text-muted-foreground">{member.users.email}</p>
+                      <p className="font-medium">
+                        {member.users?.full_name || member.users?.email || `User ${member.user_id}`}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {member.users?.email || 'Email not available'}
+                      </p>
                     </div>
                     <Badge variant="outline">{member.role}</Badge>
                   </div>
                 ))}
+                {(!project.project_members || project.project_members.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No team members found</p>
+                )}
               </div>
             </CardContent>
           </Card>

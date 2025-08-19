@@ -22,7 +22,11 @@ export const GET = withAPIErrorHandling(async (request: NextRequest) => {
     throw new Error('Unauthorized');
   }
 
-  const providers = await aiProviderService.getProviders(user.id);
+  console.log('[AI Provider][GET] Creating ServerDatabaseClient');
+  const serverDb = new ServerDatabaseClient(supabase);
+  
+  console.log('[AI Provider][GET] Calling aiProviderService.getProviders with server client');
+  const providers = await aiProviderService.getProviders(user.id, serverDb);
   console.log('[AI Provider][GET] Retrieved providers:', { count: providers.length });
   
   // Remove sensitive data before sending to client

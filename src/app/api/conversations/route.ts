@@ -1,133 +1,96 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { conversationService } from '@/lib/conversations/conversation-service'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { conversationService } from '@/lib/conversations/conversation-service';
+import { withAPIErrorHandling } from '@/lib/errors';
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+export const GET = withAPIErrorHandling(async (request: NextRequest) => {
+  console.log('[Conversations][GET] Starting request');
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const projectId = searchParams.get('projectId')
-    const query = searchParams.get('query')
-    const tags = searchParams.get('tags')?.split(',').filter(Boolean)
-    const isArchivedParam = searchParams.get('isArchived')
-    const isPinnedParam = searchParams.get('isPinned')
-    const sortBy = searchParams.get('sortBy') as 'created_at' | 'updated_at' | 'last_message_at' | 'title'
-    const sortOrder = searchParams.get('sortOrder') as 'asc' | 'desc'
-    const limitParam = searchParams.get('limit')
-    const offsetParam = searchParams.get('offset')
-
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'ProjectId is required' },
-        { status: 400 }
-      )
-    }
-
-    // Properly handle boolean parameters - only set if explicitly true/false
-    let isArchived: boolean | undefined = undefined
-    if (isArchivedParam === 'true') isArchived = true
-    else if (isArchivedParam === 'false') isArchived = false
-
-    let isPinned: boolean | undefined = undefined
-    if (isPinnedParam === 'true') isPinned = true
-    else if (isPinnedParam === 'false') isPinned = false
-
-    // Parse numeric parameters with defaults and validation
-    const limit = limitParam ? parseInt(limitParam) : 50
-    const offset = offsetParam ? parseInt(offsetParam) : 0
-
-    const options = {
-      query: query || undefined,
-      tags: tags && tags.length > 0 ? tags : undefined,
-      isArchived,
-      isPinned,
-      sortBy: sortBy || 'last_message_at',
-      sortOrder: sortOrder || 'desc',
-      limit: isNaN(limit) ? 50 : Math.max(1, Math.min(100, limit)), // Clamp between 1-100
-      offset: isNaN(offset) ? 0 : Math.max(0, offset)
-    }
-
-    console.log('Get conversations with options:', { projectId, options })
-
-    const result = await conversationService.getProjectConversations(
-      user.id,
-      projectId,
-      options
-    )
-
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error('Error getting conversations:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to get conversations' },
-      { status: 500 }
-    )
+  if (authError || !user) {
+    console.log('[Conversations][GET] Unauthorized access attempt');
+    throw new Error('Unauthorized');
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { searchParams } = new URL(request.url);
+  const projectId = searchParams.get('projectId');
+  const query = searchParams.get('query') || undefined;
+  const tags = searchParams.get('tags')?.split(',') || undefined;
+  const isArchived = searchParams.get('isArchived') === 'true' ? true : 
+                    searchParams.get('isArchived') === 'false' ? false : undefined;
+  const isPinned = searchParams.get('isPinned') === 'true' ? true :
+                  searchParams.get('isPinned') === 'false' ? false : undefined;
+  const limit = parseInt(searchParams.get('limit') || '50');
+  const offset = parseInt(searchParams.get('offset') || '0');
+  const sortBy = (searchParams.get('sortBy') as any) || 'last_message_at';
+  const sortOrder = (searchParams.get('sortOrder') as any) || 'desc';
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { 
-      projectId, 
-      title, 
-      description, 
-      parentConversationId, 
-      branchPointMessageId, 
-      tags 
-    } = body
-
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'ProjectId is required' },
-        { status: 400 }
-      )
-    }
-
-    const conversation = await conversationService.createConversation(user.id, {
-      projectId,
-      title,
-      description,
-      parentConversationId,
-      branchPointMessageId,
-      tags
-    })
-
-    return NextResponse.json(conversation)
-  } catch (error) {
-    console.error('Error creating conversation:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.message.includes('Access denied') ? 403 : 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to create conversation' },
-      { status: 500 }
-    )
+  if (!projectId) {
+    throw new Error('Project ID is required');
   }
-}
+
+  console.log('[Conversations][GET] Getting conversations for project:', {
+    projectId,
+    userId: user.id,
+    options: { query, tags, isArchived, isPinned, limit, offset, sortBy, sortOrder }
+  });
+
+  const result = await conversationService.getProjectConversations(user.id, projectId, {
+    query,
+    tags,
+    isArchived,
+    isPinned,
+    limit,
+    offset,
+    sortBy,
+    sortOrder
+  });
+
+  console.log('[Conversations][GET] Retrieved conversations:', {
+    count: result.conversations.length,
+    total: result.total
+  });
+
+  return result;
+});
+
+export const POST = withAPIErrorHandling(async (request: NextRequest) => {
+  console.log('[Conversations][POST] Starting request');
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    console.log('[Conversations][POST] Unauthorized access attempt');
+    throw new Error('Unauthorized');
+  }
+
+  const body = await request.json();
+  const { projectId, title, description, tags } = body;
+
+  if (!projectId) {
+    throw new Error('Project ID is required');
+  }
+
+  console.log('[Conversations][POST] Creating conversation:', {
+    projectId,
+    title,
+    userId: user.id
+  });
+
+  const conversation = await conversationService.createConversation(user.id, {
+    projectId,
+    title: title || 'New Conversation',
+    description,
+    tags
+  });
+
+  console.log('[Conversations][POST] Conversation created:', {
+    id: conversation.id,
+    title: conversation.title
+  });
+
+  return { conversation };
+});

@@ -99,8 +99,19 @@ export class AIProviderService {
   /**
    * Get all AI providers for a user
    */
-  async getProviders(userId?: string): Promise<AIProvider[]> {
-    const providers = await db.getAIProviders(userId);
+  async getProviders(userId?: string, serverDb?: ServerDatabaseClient): Promise<AIProvider[]> {
+    const dataClient = serverDb ?? db;
+    console.log('[AIProviderService] getProviders called', { 
+      userId, 
+      usingServerDb: !!serverDb 
+    });
+    
+    const providers = await (dataClient as any).getAIProviders(userId);
+    console.log('[AIProviderService] getProviders result', { 
+      count: providers.length,
+      providerTypes: providers.map((p: any) => p.provider)
+    });
+    
     return providers.map(this.mapDatabaseToType);
   }
 

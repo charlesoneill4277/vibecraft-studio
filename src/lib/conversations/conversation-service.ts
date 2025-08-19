@@ -103,7 +103,8 @@ export class ConversationService {
     userId: string,
     conversationId: string
   ): Promise<Conversation | null> {
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from('conversations')
       .select(`
         *,
@@ -208,7 +209,8 @@ export class ConversationService {
       throw new Error('Conversation not found or access denied')
     }
 
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from('conversations')
       .update({
         title: updates.title,
@@ -248,7 +250,8 @@ export class ConversationService {
       throw new Error('Insufficient permissions to delete conversation')
     }
 
-    const { error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { error } = await supabase
       .from('conversations')
       .delete()
       .eq('id', conversationId)
@@ -272,7 +275,8 @@ export class ConversationService {
     }
 
     // Verify the branch point message exists and belongs to the conversation
-    const { data: branchMessage, error: messageError } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data: branchMessage, error: messageError } = await supabase
       .from('project_prompts')
       .select('id, conversation_id')
       .eq('id', request.branchPointMessageId)
@@ -293,11 +297,11 @@ export class ConversationService {
     })
 
     // Copy messages up to the branch point
-    const { data: messagesToCopy, error: copyError } = await this.supabase
+    const { data: messagesToCopy, error: copyError } = await supabase
       .from('project_prompts')
       .select('*')
       .eq('conversation_id', request.sourceConversationId)
-      .lte('created_at', (await this.supabase
+      .lte('created_at', (await supabase
         .from('project_prompts')
         .select('created_at')
         .eq('id', request.branchPointMessageId)
@@ -324,7 +328,7 @@ export class ConversationService {
         is_branch_point: msg.id === request.branchPointMessageId
       }))
 
-      const { error: insertError } = await this.supabase
+      const { error: insertError } = await supabase
         .from('project_prompts')
         .insert(messagesToInsert)
 
@@ -349,7 +353,8 @@ export class ConversationService {
     }
 
     // Get all messages in the conversation
-    const { data: messages, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data: messages, error } = await supabase
       .from('project_prompts')
       .select('*')
       .eq('conversation_id', conversationId)
@@ -391,6 +396,7 @@ export class ConversationService {
 
     // Import messages
     if (exportData.messages && exportData.messages.length > 0) {
+      const supabase = await this.getSupabase()
       const messagesToInsert = exportData.messages.map(msg => ({
         project_id: projectId,
         conversation_id: newConversation.id,
@@ -404,7 +410,7 @@ export class ConversationService {
         is_branch_point: false
       }))
 
-      const { error: insertError } = await this.supabase
+      const { error: insertError } = await supabase
         .from('project_prompts')
         .insert(messagesToInsert)
 
@@ -435,7 +441,8 @@ export class ConversationService {
       throw new Error('Access denied to project')
     }
 
-    let dbQuery = this.supabase
+    const supabase = await this.getSupabase()
+    let dbQuery = supabase
       .from('project_prompts')
       .select('*', { count: 'exact' })
       .eq('project_id', projectId)
@@ -483,7 +490,8 @@ export class ConversationService {
       throw new Error('Access denied to project')
     }
 
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from('conversations')
       .select('is_archived, is_pinned, message_count, total_tokens, total_cost')
       .eq('project_id', projectId)
@@ -541,7 +549,8 @@ export class ConversationService {
   }
 
   private async checkDeletePermission(userId: string, projectId: string): Promise<boolean> {
-    const { data: project } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data: project } = await supabase
       .from('projects')
       .select('user_id')
       .eq('id', projectId)
@@ -551,7 +560,7 @@ export class ConversationService {
       return true
     }
 
-    const { data: member } = await this.supabase
+    const { data: member } = await supabase
       .from('project_members')
       .select('role')
       .eq('project_id', projectId)

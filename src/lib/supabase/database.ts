@@ -212,6 +212,8 @@ export class DatabaseClient {
 
   // AI Providers
   async getAIProviders(userId?: string) {
+    console.log('[DB] getAIProviders called', { userId });
+    
     let query = this.supabase
       .from('ai_providers')
       .select('*')
@@ -221,8 +223,15 @@ export class DatabaseClient {
     }
     const { data, error } = await query
 
+    console.log('[DB] getAIProviders result', {
+      hasError: !!error,
+      error: error ? { message: error.message, code: (error as any).code } : null,
+      dataCount: data?.length || 0,
+      data: data?.map(p => ({ id: p.id, provider: p.provider, user_id: p.user_id, is_active: p.is_active }))
+    });
+
     if (error) throw error
-    return data
+    return data || []
   }
 
   async createAIProvider(provider: Inserts<'ai_providers'>) {
@@ -397,11 +406,22 @@ export class ServerDatabaseClient {
 
   // --- AI Providers (server-side with auth context) ---
   async getAIProviders(userId?: string) {
+    console.log('[ServerDB] getAIProviders called', { userId });
+    
     let query = this.supabase.from('ai_providers').select('*').order('created_at', { ascending: false });
     if (userId) query = query.eq('user_id', userId);
+    
     const { data, error } = await query;
+    
+    console.log('[ServerDB] getAIProviders result', {
+      hasError: !!error,
+      error: error ? { message: error.message, code: (error as any).code } : null,
+      dataCount: data?.length || 0,
+      data: data?.map(p => ({ id: p.id, provider: p.provider, user_id: p.user_id, is_active: p.is_active }))
+    });
+    
     if (error) throw error;
-    return data;
+    return data || [];
   }
 
   async createAIProvider(provider: Inserts<'ai_providers'>) {
